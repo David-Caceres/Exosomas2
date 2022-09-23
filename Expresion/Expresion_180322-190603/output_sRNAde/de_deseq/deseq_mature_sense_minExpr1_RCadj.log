@@ -1,0 +1,9 @@
+[1] "DESeq Differential Expression analysis of RNA-seq expression profiles is now running..."
+[1] "Exporting DESeq normalised table containing all genes to: /home/srna/simbolico/180322-190603/output_sRNAde/de_deseq/mature_sense_minExpr1_RCadj_deseq_normTable.csv"
+[1] "Plotting the estimated dispersion..."
+null device 
+          1 
+[1] "Plotting the mean stdv of the raw data..."
+null device 
+          1 
+[1] "Performing a test for differential expression between: grp1 and NA"

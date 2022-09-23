@@ -1,0 +1,3 @@
+[1] "EdgeR Differential Expression analysis of RNA-Seq expression profiles is now running..."
+[1] "Exporting edgeR normalised table containing all genes to: /home/srna/simbolico/180322-190603/output_sRNAde/de_edger/mature_sense_minExpr1_RCadj_edger_TMMnormTable.csv"
+[1] "Performing an exact test between: grp1 and NA"
