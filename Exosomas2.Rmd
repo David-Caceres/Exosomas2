@@ -1,0 +1,568 @@
+---
+title: "Exosomas"
+author: "David Cáceres"
+date: "6/7/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Librerias
+
+```{r}
+library(ggplot2)
+library(edgeR)
+library(DESeq2)
+library("factoextra")
+library("FactoMineR")
+library(pheatmap)
+library(dplyr)
+library(patchwork)
+library(ggsci)
+library(gridExtra)
+library(cowplot)
+library(data.table)
+
+```
+
+
+
+### Directorios de trabajo
+```{r}
+setwd("~/Documentos/Exosomas/Exosomas")
+dir <- setwd("~/Documentos/Exosomas/Exosomas")
+datadir <- file.path(dir, "Input")
+resultsdir <- file.path(dir, "Results")
+```
+
+### Lectura de los datos
+```{r}
+
+count<-read.table(file="RCadj_fullHsa.tsv", header = TRUE, sep = "\t")
+quality<-read.table(file="valueHsa.tsv", header = TRUE, sep = "\t")
+
+count<-read.table(file="RCadj_full_exo1.tsv", header = TRUE, sep = "\t")
+quality<-read.table(file="value_exo1.tsv", header = TRUE, sep = "\t")
+
+metadata<-read.table(file="Metadatos.tsv", header = TRUE, sep = "\t")
+
+metadata<-read.table(file="Metadatos.tsv", header = TRUE, sep = "\t")
+
+tipos_exo<-read.table(file="home/david_caceres/Exosomas/Exosomas/Tablas/readsPerc.tsv", header = TRUE, sep = "\t")
+
+brain<-read.table(file="home/david_caceres/Exosomas/Exosomas/Tablas/brain_q.tsv", header = TRUE, sep = "\t")
+```
+
+### Formato
+```{r}
+rownames(count) <- count[,1]
+count_exo<-count[-1]
+
+rownames(quality) <- quality[,1]
+quality_exo<-quality[-1]
+
+metadata_exo<-metadata[-1]
+
+rownames(quality_exo)<-c("s32","s28","s21","s19","s24","s2","s4","s25","s34","s7", "s16","s8","brn","s26","s12", "s27", "s35", "s17", "s29", "s23", "s10","s3", "s15","s1", "s9", "s13", "s18", "s33", "s5", "s31", "s6", "s20","s11", "s22", "s14", "s30")
+
+colnames(count_exo)<-c("s32","s28","s21","s19","s24","s2","s4","s25","s34","s7", "s16","s8","brn","s26","s12", "s27", "s35", "s17", "s29", "s23", "s10","s3", "s15","s1", "s9", "s13", "s18", "s33", "s5", "s31", "s6", "s20","s11", "s22", "s14", "s30")
+
+rownames(metadata)<-c("s32","s28","s21","s19","s24","s2","s4","s25","s34","s7", "s16","s8","brn","s26","s12", "s27", "s35", "s17", "s29", "s23", "s10","s3", "s15","s1", "s9", "s13", "s18", "s33", "s5", "s31", "s6", "s20","s11", "s22", "s14", "s30")
+
+```
+
+
+```{r}
+str(count_exo)
+str(quality_exo)
+```
+
+
+### Plots
+
+```{r}
+ggplot(data=quality_exo, aes(x=rownames(quality_exo), y=readsRaw)) +
+    geom_bar(stat="identity", fill="steelblue")+
+    geom_text(aes(label=rownames(quality_exo)), vjust=1.6, color="white", size=3.5)+
+    theme_minimal()
+```
+
+```{r}
+boxplot(count_exo, ylab="Log2-CPM",las=2, xlab="", cex.axis=0.8, main="Boxplots of logCPMs (unnormalised)", ylim=c(1,3))
+```
+
+
+
+```{r}
+plotMDS(count_exo, main="MDS", cex=0.7)
+```
+
+
+```{r}
+datos<-DESeqDataSetFromMatrix(countData = round(count_exo), colData= metadata_exo, design = ~ 1)
+```
+
+```{r}
+PCAdata <- prcomp(t(assay(datos)))
+fviz_pca_ind(PCAdata, repel = TRUE)
+```
+
+
+```{r}
+clusters2 <- hclust(dist( t( assay(datos) ) ), method ="ward.D")
+plot(clusters2)
+```
+
+
+```{r}
+
+sampleDists <- dist( t( assay(datos) ) )
+sampleDistMatrix <- as.matrix( sampleDists)
+pheatmap(sampleDistMatrix,
+         clustering_distance_rows=sampleDists,
+         clustering_distance_cols=sampleDists, main = "Sample Distance Matrix ")
+
+```
+
+
+# Parámetros de calidad
+
+```{r}
+
+
+# Reads
+
+p1 <- ggplot(tipos_exo,aes(x = sample1, y = value, fill = factor(X, levels=c("readsPerc")), width=1.05)) +
+    geom_bar( stat = "identity", position = position_stack()) +
+    scale_y_continuous(expand = c(0, 0), breaks = seq(0, 100, by = 10)) +
+    labs(x = NULL, y= "% reads" , title="Reads % QC", fill="Quality Control") +
+    theme(axis.text.x = element_blank(),
+          axis.ticks.x = element_blank(),
+          axis.ticks.length.x = unit(0, "pt")) + scale_fill_jco()+
+    theme(
+        panel.background = element_rect(fill='transparent'),
+        plot.background = element_rect(fill='transparent', color=NA),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.background = element_rect(fill='transparent'),
+        legend.box.background = element_rect(fill='transparent')
+    )
+
+tipos_exo1 <- tipos_exo |>
+    distinct(sample, sample1, batch)
+p_axis <- ggplot(tipos_exo1, aes(x = sample1, y = factor(1), fill = batch)) +
+    geom_tile(width = 1) +
+    theme_void() +
+    theme(axis.title.x = element_text(), legend.position=c(1.1,2.1)) +
+    labs(x="Batch Annotation", fill="Batch Annotation")
+
+p1_q<-p1 / p_axis + plot_layout(heights = c(8,1))  + scale_fill_igv()
+
+
+
+# Cerebro
+
+p_reads_brain<-ggplot(brainq,aes(x = sample, y = value1, fill=variable1)) +
+geom_bar( stat = "identity") +
+scale_y_continuous(expand = c(0, 0), breaks = seq(0, 100, by = 10)) +
+labs(x = NULL, y= "% reads" , title="Brain Reads QC") +
+theme(axis.text.x = element_blank(),
+axis.ticks.length.x = unit(0, "pt")) + scale_fill_jco()+
+theme(
+panel.background = element_rect(fill='transparent'),
+plot.background = element_rect(fill='transparent', color=NA),
+panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(),
+legend.background = element_rect(fill='transparent'),
+legend.box.background = element_rect(fill='transparent')
+) +
+theme(legend.position="none")
+p_axis_reads_brain <- ggplot(brainq, aes(x =sample, y = factor(1), fill = batch)) +
+geom_tile(width = 1) +
+theme_void() +
+theme(axis.title.x = element_text())  +
+labs(x="Batch Annotation", fill="Batch Annotation") +
+theme(legend.position="none")
+p3_qb<-p_reads_brain / p_axis_reads_brain + plot_layout(heights = c(8, 1))  + scale_fill_igv()
+
+
+
+plot_grid(p1_q,p3_qb, rel_widths = c(2, 1))
+
+
+```
+
+
+```{r}
+
+# Cortos
+
+
+p_short<-ggplot(short,aes(x = reorder(sample, -value), y = value, fill = X, width=1.05)) +
+geom_bar( stat = "identity") +
+scale_y_continuous(expand = c(0, 0), breaks = seq(0, 30, by = 5)) +
+labs(x = NULL, y= "% short reads" , title="Short Reads QC", fill="Quality Control") +
+theme(axis.text.x = element_blank(),
+axis.ticks.x = element_blank(),
+axis.ticks.length.x = unit(0, "pt")) + scale_fill_jco()+
+theme(
+panel.background = element_rect(fill='transparent'),
+plot.background = element_rect(fill='transparent', color=NA),
+panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(),
+legend.background = element_rect(fill='transparent'),
+legend.box.background = element_rect(fill='transparent')
+)
+p_axis_short <- ggplot(short, aes(x = reorder(sample, -value), y = factor(1), fill = batch)) +
+geom_tile(width = 1) +
+theme_void() +
+theme(axis.title.x = element_text(), legend.position=c(1.06,2.1)) +
+labs(x="Batch Annotation", fill="Batch Annotation")
+p3q<-p_short / p_axis_short + plot_layout(heights = c(8, 1))  + scale_fill_igv()
+
+
+# Cerebro
+
+p_short_brain<-ggplot(brainq,aes(x = sample, y = value2, fill = variable2)) +
+geom_bar( stat = "identity") +
+scale_y_continuous(expand = c(0, 0), breaks = seq(0, 100, by = 1)) +
+labs(x = NULL, y= "% reads" , title="Brain short reads QC", fill="QC") +
+theme(axis.text.x = element_blank(),
+axis.ticks.x = element_blank(),
+axis.ticks.length.x = unit(0, "pt")) + scale_fill_jco()+
+theme(
+panel.background = element_rect(fill='transparent'),
+plot.background = element_rect(fill='transparent', color=NA),
+panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(),
+legend.background = element_rect(fill='transparent'),
+legend.box.background = element_rect(fill='transparent')
+) +
+theme(legend.position="none")
+p_axis_short_brain <- ggplot(brainq, aes(x =sample, y = factor(1), fill = batch)) +
+geom_tile(width = 1) +
+theme_void() +
+theme(axis.title.x = element_text()) +
+labs(x="Batch Annotation", fill="Batch Annotation") +
+theme(legend.position="none")
+p4_qb<-p_short_brain / p_axis_short_brain + plot_layout(heights = c(8, 1))  + scale_fill_igv()
+
+
+plot_grid(p3q,p4_qb, rel_widths = c(2, 1))
+```
+
+
+
+```{r}
+
+
+# Ultra cortos
+
+p_ushort<-ggplot(ushort,aes(x = reorder(sample, -value), y = value, fill = X, width=1.05)) +
+geom_bar( stat = "identity") +
+scale_y_continuous(expand = c(0, 0), breaks = seq(0, 80, by = 10)) +
+labs(x = NULL, y= "% ultra short reads" , title="Ultra Short Reads QC", fill="Quality Control") +
+theme(axis.text.x = element_blank(),
+axis.ticks.x = element_blank(),
+axis.ticks.length.x = unit(0, "pt")) + scale_fill_jco()+
+theme(
+panel.background = element_rect(fill='transparent'),
+plot.background = element_rect(fill='transparent', color=NA),
+panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(),
+legend.background = element_rect(fill='transparent'),
+legend.box.background = element_rect(fill='transparent')
+)
+p_axis_ushort <- ggplot(ushort, aes(x = reorder(sample, -value), y = factor(1), fill = batch)) +
+geom_tile(width = 1) +
+theme_void() +
+theme(axis.title.x = element_text(), legend.position=c(1.14,2.1)) +
+labs(x="Batch Annotation", fill="Batch Annotation")
+p5_q<-p_ushort / p_axis_ushort + plot_layout(heights = c(8, 1))  + scale_fill_igv()
+
+
+
+# Cerebro
+
+p_ushort_brain<-ggplot(brainq,aes(x = sample, y = value3, fill = "none")) +
+geom_bar( stat = "identity") +
+scale_y_continuous(expand = c(0, 0), breaks = seq(0, 100, by = 5)) +
+labs(x = NULL, y= "% reads" , title="Brain Ultra Short Reads QC") +
+theme(axis.text.x = element_blank(),
+axis.ticks.x = element_blank(),
+axis.ticks.length.x = unit(0, "pt")) + scale_fill_jco()+
+theme(
+panel.background = element_rect(fill='transparent'),
+panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(),
+legend.background = element_rect(fill='transparent'),
+legend.box.background = element_rect(fill='transparent')
+) +
+theme(legend.position="none")
+p_axis_ushort_brain <- ggplot(brainq, aes(x =sample, y = factor(1), fill = batch)) +
+geom_tile(width = 1) +
+theme_void() +
+theme(axis.title.x = element_text())  +
+labs(x="Batch Annotation", fill="Batch Annotation") +
+theme(legend.position="none")
+p5_qb<-p_ushort_brain / p_axis_ushort_brain + plot_layout(heights = c(8, 1))  + scale_fill_igv()
+
+
+
+plot_grid(p5_q,p5_qb, rel_widths = c(2, 1))
+
+```
+
+```{r}
+# Genoma de referencia
+
+
+p_ref.genome<-ggplot(ref.genome,aes(x = reorder(sample, -value), y = value, fill = variable, width=1.05)) +
+geom_bar( stat = "identity") +
+scale_y_continuous(expand = c(0, 0), breaks = seq(0, 100, by = 10)) +
+labs(x = NULL, y= "% reads" , title="Reference genome % Reads QC", fill="Quality Control") +
+theme(axis.text.x = element_blank(),
+axis.ticks.x = element_blank(),
+axis.ticks.length.x = unit(0, "pt")) + scale_fill_jco()+
+theme(
+panel.background = element_rect(fill='transparent'),
+plot.background = element_rect(fill='transparent', color=NA),
+panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(),
+legend.background = element_rect(fill='transparent'),
+legend.box.background = element_rect(fill='transparent')
+)
+p_axis_ref.genome<- ggplot(ref.genome, aes(x = reorder(sample, -value), y = factor(1), fill = batch)) +
+geom_tile(width = 1) +
+theme_void() +
+theme(axis.title.x = element_text(), legend.position=c(1.14,2.1)) +
+labs(x="Batch Annotation", fill="Batch Annotation")
+p6_q<-p_ref.genome / p_axis_ref.genome + plot_layout(heights = c(8, 1))  + scale_fill_igv()
+
+
+# Cerebro
+
+p_ref.genome_brain<-ggplot(brainq,aes(x = sample, y = value4, fill = "none")) +
+geom_bar( stat = "identity") +
+scale_y_continuous(expand = c(0, 0), breaks = seq(0, 100, by = 10)) +
+labs(x = NULL, y= "% reads" , title="Brain Ref Genome QC") +
+theme(axis.text.x = element_blank(),
+axis.ticks.x = element_blank(),
+axis.ticks.length.x = unit(0, "pt")) + scale_fill_jco()+
+theme(
+panel.background = element_rect(fill='transparent'),
+plot.background = element_rect(fill='transparent', color=NA),
+panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(),
+legend.background = element_rect(fill='transparent'),
+legend.box.background = element_rect(fill='transparent')
+) +
+theme(legend.position="none")
+p_axis_ref.genome_brain <- ggplot(brainq, aes(x =sample, y = factor(1), fill = batch)) +
+geom_tile(width = 1) +
+theme_void() +
+theme(axis.title.x = element_text())  +
+labs(x="Batch Annotation", fill="Batch Annotation") +
+theme(legend.position="none")
+p6_qb<-p_ref.genome_brain / p_axis_ref.genome_brain + plot_layout(heights = c(8, 1))  + scale_fill_igv()
+
+plot_grid(p6_q,p6_qb, rel_widths = c(2, 1))
+
+```
+
+
+
+```{r}
+# Unmapped
+
+p_unmapped<-ggplot(unmapped,aes(x = reorder(sample, -value), y = value, fill = variable, width=1.05)) +
+geom_bar( stat = "identity") +
+scale_y_continuous(expand = c(0, 0), breaks = seq(0, 100, by = 10)) +
+labs(x = NULL, y= "% reads" , title="Unmapped % Reads QC", fill="Quality Control") +
+theme(axis.text.x = element_blank(),
+axis.ticks.x = element_blank(),
+axis.ticks.length.x = unit(0, "pt")) + scale_fill_jco()+
+theme(
+panel.background = element_rect(fill='transparent'),
+plot.background = element_rect(fill='transparent', color=NA),
+panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(),
+legend.background = element_rect(fill='transparent'),
+legend.box.background = element_rect(fill='transparent')
+)
+p_axis_unmapped<- ggplot(unmapped, aes(x = reorder(sample, -value), y = factor(1), fill = batch)) +
+geom_tile(width = 1) +
+theme_void() +
+theme(axis.title.x = element_text(), legend.position=c(1.14,2.1)) +
+labs(x="Batch Annotation", fill="Batch Annotation")
+p7_q<-p_unmapped / p_axis_unmapped + plot_layout(heights = c(8, 1))  + scale_fill_igv()
+
+
+p_unmapped_brain<-ggplot(brainq,aes(x = sample, y = value5, fill = "none")) +
+geom_bar( stat = "identity") +
+scale_y_continuous(expand = c(0, 0), breaks = seq(0, 100, by = 10)) +
+labs(x = NULL, y= "% reads" , title="Unmapped Brain QC") +
+theme(axis.text.x = element_blank(),
+axis.ticks.x = element_blank(),
+axis.ticks.length.x = unit(0, "pt")) + scale_fill_jco()+
+theme(
+panel.background = element_rect(fill='transparent'),
+plot.background = element_rect(fill='transparent', color=NA),
+panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(),
+legend.background = element_rect(fill='transparent'),
+legend.box.background = element_rect(fill='transparent')
+) +
+theme(legend.position="none")
+p_axis_unmapped_brain <- ggplot(brainq, aes(x =sample, y = factor(1), fill = batch)) +
+geom_tile(width = 1) +
+theme_void() +
+theme(axis.title.x = element_text())  +
+labs(x="Batch Annotation", fill="Batch Annotation") +
+theme(legend.position="none")
+p7_qb<-p_unmapped_brain / p_axis_unmapped_brain + plot_layout(heights = c(8, 1))  + scale_fill_igv()
+
+
+plot_grid(p7_q,p7_qb, rel_widths = c(2, 1))
+
+```
+
+
+```{r}
+
+# Bacteria
+
+p_bacteria<-ggplot(bacteria,aes(x = reorder(sample, -value), y = value, fill = variable, width=1.05)) +
+geom_bar( stat = "identity") +
+scale_y_continuous(expand = c(0, 0), breaks = seq(0, 100, by = 10)) +
+labs(x = NULL, y= "% reads" , title="Bacteria % Reads QC", fill="Quality Control") +
+theme(axis.text.x = element_blank(),
+axis.ticks.x = element_blank(),
+axis.ticks.length.x = unit(0, "pt")) + scale_fill_jco()+
+theme(
+panel.background = element_rect(fill='transparent'),
+plot.background = element_rect(fill='transparent', color=NA),
+panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(),
+legend.background = element_rect(fill='transparent'),
+legend.box.background = element_rect(fill='transparent')
+)
+p_axis_bacteria<- ggplot(bacteria, aes(x = reorder(sample, -value), y = factor(1), fill = batch)) +
+geom_tile(width = 1) +
+theme_void() +
+theme(axis.title.x = element_text(), legend.position=c(1.14,2.1)) +
+labs(x="Batch Annotation", fill="Batch Annotation")
+p8_q<-p_bacteria / p_axis_bacteria + plot_layout(heights = c(8, 1))  + scale_fill_igv()
+
+
+p_bacteria_brain<-ggplot(brainq,aes(x = sample, y = value6, fill = "none")) +
+geom_bar( stat = "identity") +
+scale_y_continuous(expand = c(0, 0), breaks = seq(0, 100, by = 1)) +
+labs(x = NULL, y= "% reads" , title="Bacteria Brain QC") +
+theme(axis.text.x = element_blank(),
+axis.ticks.x = element_blank(),
+axis.ticks.length.x = unit(0, "pt")) + scale_fill_jco()+
+theme(
+panel.background = element_rect(fill='transparent'),
+plot.background = element_rect(fill='transparent', color=NA),
+panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(),
+legend.background = element_rect(fill='transparent'),
+legend.box.background = element_rect(fill='transparent')
+) +
+theme(legend.position="none")
+p_axis_bacteria_brain <- ggplot(brainq, aes(x =sample, y = factor(1), fill = batch)) +
+geom_tile(width = 1) +
+theme_void() +
+theme(axis.title.x = element_text())  +
+labs(x="Batch Annotation", fill="Batch Annotation") +
+theme(legend.position="none")
+p8_qb<-p_bacteria_brain / p_axis_bacteria_brain + plot_layout(heights = c(8, 1))  + scale_fill_igv()
+
+
+plot_grid(p8_q,p8_qb, rel_widths = c(2, 1))
+
+
+```
+
+
+
+```{r}
+# Virus
+
+
+p_virus<-ggplot(virus,aes(x = reorder(sample, -value), y = value, fill = variable, width=1.05)) +
+geom_bar( stat = "identity") +
+scale_y_continuous(expand = c(0, 0), breaks = seq(0, 10, by = 1)) +
+labs(x = NULL, y= "% reads" , title="Virus % Reads QC", fill="Quality Control") +
+theme(axis.text.x = element_blank(),
+axis.ticks.x = element_blank(),
+axis.ticks.length.x = unit(0, "pt")) + scale_fill_jco()+
+theme(
+panel.background = element_rect(fill='transparent'),
+plot.background = element_rect(fill='transparent', color=NA),
+panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(),
+legend.background = element_rect(fill='transparent'),
+legend.box.background = element_rect(fill='transparent')
+)
+p_axis_virus<- ggplot(virus, aes(x = reorder(sample, -value), y = factor(1), fill = batch)) +
+geom_tile(width = 1) +
+theme_void() +
+theme(axis.title.x = element_text(), legend.position=c(1.14,2.1)) +
+labs(x="Batch Annotation", fill="Batch Annotation")
+p9_q<-p_virus / p_axis_virus + plot_layout(heights = c(8, 1))  + scale_fill_igv()
+
+
+
+p_virus_brain<-ggplot(brainq,aes(x = sample, y = value7, fill = "none")) +
+geom_bar( stat = "identity") +
+scale_y_continuous(expand = c(0, 0), breaks = seq(0, 100, by = 0.1)) +
+labs(x = NULL, y= "% reads" , title="Virus Brain QC") +
+theme(axis.text.x = element_blank(),
+axis.ticks.x = element_blank(),
+axis.ticks.length.x = unit(0, "pt")) + scale_fill_jco()+
+theme(
+panel.background = element_rect(fill='transparent'),
+plot.background = element_rect(fill='transparent', color=NA),
+panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(),
+legend.background = element_rect(fill='transparent'),
+legend.box.background = element_rect(fill='transparent')
+) +
+theme(legend.position="none")
+p_axis_virus_brain <- ggplot(brainq, aes(x =sample, y = factor(1), fill = batch)) +
+geom_tile(width = 1) +
+theme_void() +
+theme(axis.title.x = element_text())  +
+labs(x="Batch Annotation", fill="Batch Annotation") +
+theme(legend.position="none")
+p9_qb<-p_virus_brain / p_axis_virus_brain + plot_layout(heights = c(8, 1))  + scale_fill_igv()
+
+plot_grid(p9_q,p9_qb, rel_widths = c(2, 1))
+```
+
+
+Construccion de la matriz de expresion
+
+```{r}
+
+# Pasamos este script pot cada batch para montar su matriz de expresión, luego lo usamos para montar otra a partir de ellas.
+
+setwd("/home/david_caceres/Exosomas/Exosomas/Expresion/Expresion_180322-190603/")
+filenames <- list.files(pattern="*.tsv") # Leo los archivos de una carpeta
+all_files <- lapply(filenames,function(x) { # Cargo los archivos y añado espacios
+read.table(file = x,
+sep = '\t',
+header = TRUE)
+})
+list3<- lapply(all_files, "[", c(1,3)) # Extraigo las 2 columnas que necesito
+matrixA<-rbindlist(list3,fill=TRUE) # Uno todos los dataframes en uno
+matrixA %>% distinct() # Compruebo si hay duplicados en la columna de miRnas
+list4 <- lapply(list3, function(x) x[!duplicated(x$name),])
+matrixA<-rbindlist(list4,fill=TRUE)
+write.table(matrixD, file = "matrixD.tsv", append = FALSE, quote = TRUE, sep = "\t ")
+```
+
