@@ -15,13 +15,10 @@ knitr::opts_chunk$set(echo = TRUE)
 library(ggplot2)
 library(edgeR)
 library(DESeq2)
-library("factoextra")
-library("FactoMineR")
 library(pheatmap)
 library(dplyr)
 library(patchwork)
 library(ggsci)
-library(gridExtra)
 library(cowplot)
 library(data.table)
 
@@ -31,10 +28,7 @@ library(data.table)
 
 ### Directorios de trabajo
 ```{r}
-setwd("~/Documentos/Exosomas/Exosomas")
-dir <- setwd("~/Documentos/Exosomas/Exosomas")
-datadir <- file.path(dir, "Input")
-resultsdir <- file.path(dir, "Results")
+setwd("~/Exosomas/Exosomas2")
 ```
 
 ### Lectura de los datos
@@ -43,16 +37,28 @@ resultsdir <- file.path(dir, "Results")
 count<-read.table(file="RCadj_fullHsa.tsv", header = TRUE, sep = "\t")
 quality<-read.table(file="valueHsa.tsv", header = TRUE, sep = "\t")
 
-count<-read.table(file="RCadj_full_exo1.tsv", header = TRUE, sep = "\t")
+count<-read.table(file="/home/david_caceres/Exosomas/Exosomas2/RCadj_full_exo1.tsv", header = TRUE, sep = "\t")
 quality<-read.table(file="value_exo1.tsv", header = TRUE, sep = "\t")
 
 metadata<-read.table(file="Metadatos.tsv", header = TRUE, sep = "\t")
 
 metadata<-read.table(file="Metadatos.tsv", header = TRUE, sep = "\t")
 
-tipos_exo<-read.table(file="home/david_caceres/Exosomas/Exosomas/Tablas/readsPerc.tsv", header = TRUE, sep = "\t")
+tipos_exo<-read.table(file="/home/david_caceres/Exosomas/Exosomas2/Tablas/readsPerc.tsv", header = TRUE, sep = "\t")
 
-brain<-read.table(file="home/david_caceres/Exosomas/Exosomas/Tablas/brain_q.tsv", header = TRUE, sep = "\t")
+brainq<-read.table(file="/home/david_caceres/Exosomas/Exosomas2/Tablas/brain_q.tsv", header = TRUE, sep = "\t")
+
+short<-read.table(file="/home/david_caceres/Exosomas/Exosomas2/Tablas/shortReadsPerc.tsv", header = TRUE, sep = "\t")
+
+ushort<-read.table(file="/home/david_caceres/Exosomas/Exosomas2/Tablas/ultrashort.tsv", header = TRUE, sep = "\t")
+
+ref.genome<-read.table(file="/home/david_caceres/Exosomas/Exosomas2/Tablas/ref.genome.tsv", header = TRUE, sep = "\t")
+
+unmapped<-read.table(file="/home/david_caceres/Exosomas/Exosomas2/Tablas/unmapped.tsv", header = TRUE, sep = "\t")
+
+bacteria<-read.table(file="/home/david_caceres/Exosomas/Exosomas2/Tablas/bacteria.tsv", header = TRUE, sep = "\t")
+
+virus<-read.table(file="/home/david_caceres/Exosomas/Exosomas2/Tablas/virus.tsv", header = TRUE, sep = "\t")
 ```
 
 ### Formato
@@ -131,8 +137,10 @@ pheatmap(sampleDistMatrix,
 
 ```{r}
 
-
 # Reads
+
+tipos_exo <- tipos_exo |> 
+   mutate(sample1 = reorder(sample, -ifelse(!X %in% "readsPerc", 0, value), FUN = sum))
 
 p1 <- ggplot(tipos_exo,aes(x = sample1, y = value, fill = factor(X, levels=c("readsPerc")), width=1.05)) +
     geom_bar( stat = "identity", position = position_stack()) +
@@ -190,6 +198,7 @@ p3_qb<-p_reads_brain / p_axis_reads_brain + plot_layout(heights = c(8, 1))  + sc
 
 
 plot_grid(p1_q,p3_qb, rel_widths = c(2, 1))
+
 
 
 ```
@@ -545,7 +554,7 @@ plot_grid(p9_q,p9_qb, rel_widths = c(2, 1))
 ```
 
 
-Construccion de la matriz de expresion
+## Construccion de la matriz de expresion
 
 ```{r}
 
@@ -563,6 +572,113 @@ matrixA<-rbindlist(list3,fill=TRUE) # Uno todos los dataframes en uno
 matrixA %>% distinct() # Compruebo si hay duplicados en la columna de miRnas
 list4 <- lapply(list3, function(x) x[!duplicated(x$name),])
 matrixA<-rbindlist(list4,fill=TRUE)
-write.table(matrixD, file = "matrixD.tsv", append = FALSE, quote = TRUE, sep = "\t ")
+write.table(matrixA, file = "matrixA.tsv", append = FALSE, quote = TRUE, sep = "\t ")
+```
+
+
+## Análisis
+
+
+```{r}
+
+# Directorios y cargo archivos
+
+setwd("/home/david_caceres/Exosomas/Exosomas2/Expresion/Matrices de Expresion/")
+
+filenames <- list.files(pattern="*.tsv")
+
+matriz<-read.delim(file="/home/david_caceres/Exosomas/Exosomas2/Expresion/Matrices de Expresion/matrixXA.tsv", row.names=1)
+matriz[is.na(matriz)] = 0
+
+names(matriz)=str_sub(names(matriz),2) #Quitamos las X
+names(matriz) <- gsub(x = names(matriz), pattern = "\\.", replacement = "-") # Cambio los puntos de las muestras de cerebro por guiones
+
+
+
+meta<-read.table(file="/home/david_caceres/Exosomas/Exosomas2/metadata.tsv", header = TRUE, sep = "\t")
+meta = meta[-180,]
+
+cross<-read.csv(file="/home/david_caceres/Exosomas/Exosomas2/CrossSectional.minInfo.csv", header = TRUE, sep = ",")
+
+
+# Preparemos los metadatos
+
+meta2 <- strsplit(as.character(meta$sample),'_EXO_')
+
+meta3<-do.call(rbind, meta2)
+
+meta4<-cbind(meta, meta3)
+
+colnames(meta4)= c("sample", "batch","OMICID", "smp" )
+
+head(meta4)
+
+
+# Unimos todos los metadatos en un archivo
+
+cross2<-merge(cross, meta4, by="OMICID")
+
+# Quito las muestras de cerebro
+
+matriz2 <- matriz %>% select(-contains("Brain"))
+
+# Damos el mismo orden de columnas a matriz y metadatos
+
+setcolorder(matriz2,cross2$sample)
+
+# Compruebo que sean iguales
+
+all.equal(colnames(matriz2), cross2$sample)
+
+
+```
+
+
+
+```{r}
+# Creo una lista de DGlist con los grupos. Agrupo por batch
+
+y <- DGEList(counts=matriz2,group=cross2$batch)
+
+# Elimino los contajes bajos
+
+keep<- filterByExpr(y,group=cross2$batch)
+
+table(keep)
+
+# Devuelvo el resultado al dataframe anterior
+
+y<- y[keep, , keep.lib.sizes=FALSE]
+
+# Normalizacion
+
+y<- calcNormFactors(y)
+y$samples
+
+
+group=cross2$batch
+
+col.status <- c("blue","red","dark green","yellow","brown","orange", "pink")[group]
+
+plotMDS(y,col=col.status)
+
+plotMDS(y,col=col.status, pch = pch[group])
+```
+
+
+# Por coeficientes de variacion
+
+
+```{r}
+library(Rfast)
+matriz3<-data.matrix(matriz2)
+matriz3<-rowcvs(matriz3, ln = FALSE, unbiased = FALSE)
+typeof(matriz3)
+as.numeric(matriz3)
+
+
+matriz4<-matriz2[order(matriz2$cv, decreasing = TRUE),]
+
+
 ```
 
