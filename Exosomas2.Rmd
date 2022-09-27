@@ -21,7 +21,8 @@ library(patchwork)
 library(ggsci)
 library(cowplot)
 library(data.table)
-
+library(tibble)
+library(magrittr)
 ```
 
 
@@ -603,7 +604,7 @@ cross<-read.csv(file="/home/david_caceres/Exosomas/Exosomas2/CrossSectional.minI
 
 # Preparemos los metadatos
 
-meta2 <- strsplit(as.character(meta$sample),'_EXO_')
+
 
 meta3<-do.call(rbind, meta2)
 
@@ -617,6 +618,11 @@ head(meta4)
 # Unimos todos los metadatos en un archivo
 
 cross2<-merge(cross, meta4, by="OMICID")
+
+cross2[, 'batch_shortname'] <- as.factor(cross2[, 'batch_shortname'])
+
+cross2$sample_shortname<-paste(cross2$batch_shortname, cross2$smp)
+
 
 # Quito las muestras de cerebro
 
@@ -694,7 +700,7 @@ matriz_top20_cv_1<-matriz_top20_cv[,-267]
 
 # Creo una lista de DGlist con los grupos. Agrupo por batch
 
-group=cross2$batch_shortname
+Batch=cross2$batch_shortname
 
 y <- DGEList(matriz20, group = group)
 
@@ -705,7 +711,7 @@ y<- calcNormFactors(y)
 y$samples
 
 
-col.status <- c("blue","red","dark green","yellow","lightblue4","orange3", "lightskyblue", "violetred4")[group]
+col.status <- c("blue","red","dark green","yellow","lightblue4","orange3", "lightskyblue", "violetred4")[Batch]
 
 
 plotMDS(y,col=col.status, main="Top 20% miRna cv", pch=16, cex=1.4)
@@ -732,3 +738,75 @@ ggplot(mds2, aes(x = `V1`, y = `V2`, label=rownames(matriz20))) +
 
 
 ```
+
+
+# Análisis 2
+
+```{r}
+# Contajes ya filtrados
+
+
+colnames(matriz2) <- cross2$sample_shortname
+head(matriz2)
+
+# Filtramos por CPM y eliminamos conteos bajos
+thresh <- counts.CPM > 0.5
+head(thresh)
+
+# Me quedo con los que pasan el umbral
+keep <- rowSums(thresh) >= 2
+counts.keep <- matriz2[keep,]
+
+# MOnto la DGEList
+DGEList(counts.keep, group = cross2$batch_shortname)
+names(dgeObj)
+logcounts <- cpm(dgeObj,log=TRUE)
+dgeObj_norm <- calcNormFactors(dgeObj)
+logcounts_norm <- cpm(dgeObj_norm,log=TRUE)
+sampleDists <- dist(t(logcounts_norm))
+cross2$batch_shortname <- factor (cross2$batch_shortname)
+col.status <- c("blue","red","dark green","yellow","lightblue4","orange3", "lightskyblue", "violetred4")[cross2$batch_shortname]
+data.frame(cross2$batch_shortname,col.status)
+plotMDS(logcounts_norm,col=col.status, main="Batch", cex=0.9, pch=16)
+legend("right", inset=c(-0.092,0),
+fill=c("blue","red","dark green","yellow","lightblue4","orange3", "lightskyblue", "violetred4"),
+legend=levels(cross2$batch_shortname), title="Batch")
+
+
+```
+
+
+
+```{r}
+# Matriz de diseño
+
+design  <-  model.matrix(~0+group)
+
+# Objeto de DESseq
+
+dds <- DESeqDataSetFromMatrix(counts.keep,
+colData = cross2,
+design = design)
+
+dim(dds)
+
+barplot(colSums(assay(dds)), names=colData(dds)$SampleName, las=2, main="Barplot of library sizes")
+
+abline(h=20e6, lty=2)
+
+
+# Multi dimensional scaling
+
+vsd <- varianceStabilizingTransformation(dds,blind=TRUE)
+
+mds <- as.data.frame(colData(vsd))  %>%
+cbind(cmdscale(sampleDistMatrix))
+
+
+mds_plot<-ggplot(mds, aes(x = `1`, y = `2`, color = Batch)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Batch") + stat_ellipse()
+mds_plot + scale_color_igv()
+
+
+```
+
