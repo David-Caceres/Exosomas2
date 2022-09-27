@@ -718,4 +718,17 @@ legend("right", inset=c(-0.092,0),
 ggplot(matriz20, aes(x, y, label=rownames(matriz20))) +
 geom_text(alpha=0.8,size=3)
 
+
+
+d <- dist(matriz20)
+mds <- cmdscale(d)
+mds2 <- as.data.frame(as.matrix(mds))
+ggplot(mds2, aes(x = `V1`, y = `V2`, label=rownames(matriz20))) +
+    geom_point()+
+    stat_ellipse()
+
+
+
+
+
 ```
