@@ -750,6 +750,8 @@ colnames(matriz2) <- cross2$sample_shortname
 head(matriz2)
 
 # Filtramos por CPM y eliminamos conteos bajos
+
+counts.CPM <- cpm(matriz2)
 thresh <- counts.CPM > 0.5
 head(thresh)
 
@@ -757,7 +759,7 @@ head(thresh)
 keep <- rowSums(thresh) >= 2
 counts.keep <- matriz2[keep,]
 
-# MOnto la DGEList
+# Monto la DGEList
 DGEList(counts.keep, group = cross2$batch_shortname)
 names(dgeObj)
 logcounts <- cpm(dgeObj,log=TRUE)
@@ -777,7 +779,26 @@ legend=levels(cross2$batch_shortname), title="Batch")
 
 
 
+# MDS GGplot VST Batch
+
 ```{r}
+
+
+colnames(matriz2) <- cross2$sample_shortname
+head(matriz2)
+
+# Filtramos por CPM y eliminamos conteos bajos
+
+counts.CPM <- cpm(matriz2)
+thresh <- counts.CPM > 0.5
+head(thresh)
+
+# Me quedo con los que pasan el umbral
+keep <- rowSums(thresh) >= 2
+counts.keep <- matriz2[keep,]
+
+
+
 # Matriz de diseño
 
 design  <-  model.matrix(~0+group)
@@ -804,9 +825,281 @@ cbind(cmdscale(sampleDistMatrix))
 
 
 mds_plot<-ggplot(mds, aes(x = `1`, y = `2`, color = Batch)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Batch") + stat_ellipse()
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Batch") + stat_ellipse() +
+theme(
+    panel.background = element_rect(fill='transparent'),
+    plot.background = element_rect(fill='transparent', color=NA),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.background = element_rect(fill='transparent'),
+    legend.box.background = element_rect(fill='transparent')
+)
+
 mds_plot + scale_color_igv()
 
+```
+
+
+# MDS GGplot VST Diagnosis
+
+```{r}
+
+Diagnosis<-cross2$Diagnosis
+
+mds_plot<-ggplot(mds, aes(x = `1`, y = `2`, color = Diagnosis)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Diagnosis") + stat_ellipse() +
+theme(
+    panel.background = element_rect(fill='transparent'),
+    plot.background = element_rect(fill='transparent', color=NA),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.background = element_rect(fill='transparent'),
+    legend.box.background = element_rect(fill='transparent')
+)
+
+mds_plot + scale_color_igv()
+
+```
+
+
+# MDS GGplot VST Gender
+
+```{r}
+
+Gender<-cross2$Gender
+
+mds_plot<-ggplot(mds, aes(x = `1`, y = `2`, color = Gender)) +
+    geom_point(size = 4) + coord_fixed() + ggtitle("MDS Gender") + stat_ellipse() +
+theme(
+    panel.background = element_rect(fill='transparent'),
+    plot.background = element_rect(fill='transparent', color=NA),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.background = element_rect(fill='transparent'),
+    legend.box.background = element_rect(fill='transparent')
+)
+
+mds_plot + scale_color_igv()
+```
+
+
+
+
+# MDS GGplot VST Age
+
+
+```{r}
+
+# Añadimos la edad como factor a los metadatos
+
+cross2<-cross2 %>%
+mutate(
+        # Create categories
+        age_group = dplyr::case_when(
+            Age <= 15            ~ "0-15",
+            Age > 15 & Age <= 30 ~ "16-30",
+            Age > 30 & Age <= 45 ~ "31-45",
+            Age > 45 & Age <= 60 ~ "46-60",
+            Age > 60 & Age <= 75 ~ "61-75",
+            Age > 76 & Age <= 90 ~ "76-90",
+        ))
+
+age<-cross2$age_group
+
+mds_plot<-ggplot(mds, aes(x = `1`, y = `2`, color = age)) +
+    geom_point(size = 5) + coord_fixed() + ggtitle("MDS Age") + stat_ellipse() +
+theme(
+    panel.background = element_rect(fill='transparent'),
+    plot.background = element_rect(fill='transparent', color=NA),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.background = element_rect(fill='transparent'),
+    legend.box.background = element_rect(fill='transparent')
+)
+
+mds_plot + scale_color_igv()
+```
+
+
+# MDS GGplot VST Center
+
+```{r}
+
+
+center<-cross2$Center
+
+mds_plot<-ggplot(mds, aes(x = `1`, y = `2`, color = Center)) +
+    geom_point(size = 4) + coord_fixed() + ggtitle("MDS Center") + stat_ellipse() +
+theme(
+    panel.background = element_rect(fill='transparent'),
+    plot.background = element_rect(fill='transparent', color=NA),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.background = element_rect(fill='transparent'),
+    legend.box.background = element_rect(fill='transparent')
+)
+
+mds_plot + scale_color_igv()
+```
+
+
+
+# Antes de plotear los valores de miRnaQC, tenemos que añadirlos a los metadatos y factorizar algunos valores.
+
+# Reads 
+
+```{r}
+head(tipos_exo)
+
+Reads<-data.frame(tipos_exo$sample, tipos_exo$value)
+colnames(Reads)<-c("sample","Reads")
+cross2<-merge(cross2, Reads, by="sample")
+
+max(cross2$Reads)
+min(cross2$Reads)
+
+
+# Factorizamos
+
+
+cross2<-cross2 %>%
+    mutate(
+        # Create categories
+        Reads_level = dplyr::case_when(
+            Reads > 20 & Reads <= 30 ~ "20-30%",
+            Reads > 30 & Reads <= 40 ~ "30-40%",
+            Reads > 40 & Reads <= 50 ~ "40-50%",
+            Reads > 50 & Reads <= 60 ~ "50-60%",
+            Reads > 60 & Reads <= 70 ~ "60-70%",
+            Reads > 70 & Reads <= 80 ~ "70-80%",
+            Reads > 80 & Reads <= 90 ~ "80-90%",
+    
+        ))
+
+# Ploteemos
+
+
+Reads<-cross2$Reads_level
+
+mds_plot<-ggplot(mds, aes(x = `1`, y = `2`, color = Reads)) +
+    geom_point(size = 4) + coord_fixed() + ggtitle("MDS Reads %") + stat_ellipse() +
+    theme(
+        panel.background = element_rect(fill='transparent'),
+        plot.background = element_rect(fill='transparent', color=NA),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.background = element_rect(fill='transparent'),
+        legend.box.background = element_rect(fill='transparent')
+    )
+
+mds_plot + scale_color_igv()
+```
+
+
+# Short Reads
+
+```{r}
+
+# Añadimos a metadatos
+
+head(short)
+
+Short_reads<-data.frame(short$sample, short$value)
+colnames(Short_reads)<-c("sample","Short_reads")
+cross2<-merge(cross2, Short_reads, by="sample")
+
+max(cross2$Short_reads)
+min(cross2$Short_reads)
+
+
+# Factorizamos
+
+
+cross2<-cross2 %>%
+    mutate(
+        # Create categories
+        Short_reads_level = dplyr::case_when(
+            Short_reads > 0 & Short_reads <= 2.500 ~ "0-2.5%",
+            Short_reads > 2.500 & Short_reads <= 5.00 ~ "2.5-5%",
+            Short_reads > 5.00 & Short_reads <= 7.500 ~ "5-7.5%",
+            Short_reads > 7.500 & Short_reads <= 10.00 ~ "7,5-10%",
+            Short_reads > 10.00 & Short_reads <= 12.500 ~ "10-12.5%",
+            Short_reads > 12.500 & Short_reads <= 15.00 ~ "12.5-15%",
+            Short_reads > 15.00 & Short_reads <= 17.500 ~ "15-17.5%",
+            Short_reads > 17.500 & Short_reads <= 20.00 ~ "17.5-20%",
+            
+        ))
+
+
+# Ploteamos
+
+
+shortreads<-factor(cross2$Short_reads_level, levels = c("0-2.5%", "2.5-5%", "5-7.5%", "7,5-10%", "10-12.5%","12.5-15%", "15-17.5%","17.5-20%"))
+
+mds_plot<-ggplot(mds, aes(x = `1`, y = `2`, color = shortreads)) +
+    geom_point(size = 4) + coord_fixed() + ggtitle("MDS Short reads %") + stat_ellipse() +
+    theme(
+        panel.background = element_rect(fill='transparent'),
+        plot.background = element_rect(fill='transparent', color=NA),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.background = element_rect(fill='transparent'),
+        legend.box.background = element_rect(fill='transparent')
+    )
+
+mds_plot + scale_color_igv()
+
+```
+
+
+# Ultra shorts
+
+```{r}
+
+# Añadimos a metadatos
+
+head(ushort)
+
+ushort_reads<-data.frame(ushort$sample, ushort$value)
+colnames(ushort_reads)<-c("sample","ushort_reads")
+cross2<-merge(cross2, ushort_reads, by="sample")
+
+max(cross2$ushort_reads)
+min(cross2$ushort_reads)
+
+
+# Factorizamos
+
+
+cross2<-cross2 %>%
+    mutate(
+        # Create categories
+        ushort_reads_level = dplyr::case_when(
+            ushort_reads > 0 & ushort_reads <= 10 ~ "0-10%",
+            ushort_reads > 10 & ushort_reads <= 20 ~ "10-20%",
+            ushort_reads > 20 & ushort_reads <= 30 ~ "20-30%",
+            ushort_reads > 30 & ushort_reads <= 40 ~ "30-40%",
+            ushort_reads > 40 & ushort_reads <= 50 ~ "40-50%",
+            ushort_reads > 50 & ushort_reads <= 60 ~ "50-60%",
+            ushort_reads > 60 & ushort_reads <= 70 ~ "60-70%",
+            ushort_reads > 70 & ushort_reads <= 80 ~ "70-80%",
+            
+        ))
+
+ushort_reads<-factor(cross2$ushort_reads_level, levels = c("0-10%", "10-20%", "20-30%", "30-40%", "40-50%","50-60%", "60-70%","70-80%"))
+
+mds_plot<-ggplot(mds, aes(x = `1`, y = `2`, color = ushort_reads)) +
+    geom_point(size = 4) + coord_fixed() + ggtitle("MDS Ultra short reads %") + stat_ellipse() +
+    theme(
+        panel.background = element_rect(fill='transparent'),
+        plot.background = element_rect(fill='transparent', color=NA),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.background = element_rect(fill='transparent'),
+        legend.box.background = element_rect(fill='transparent')
+    )
+
+mds_plot + scale_color_igv()
 
 ```
 
