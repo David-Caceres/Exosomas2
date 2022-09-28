@@ -835,6 +835,8 @@ theme(
     legend.box.background = element_rect(fill='transparent')
 )
 
+m1<-mds_plot + scale_color_igv()
+
 mds_plot + scale_color_igv()
 
 ```
@@ -857,6 +859,7 @@ theme(
     legend.box.background = element_rect(fill='transparent')
 )
 
+m2<-mds_plot + scale_color_igv()
 mds_plot + scale_color_igv()
 
 ```
@@ -879,6 +882,7 @@ theme(
     legend.box.background = element_rect(fill='transparent')
 )
 
+m3<-mds_plot + scale_color_igv()
 mds_plot + scale_color_igv()
 ```
 
@@ -917,6 +921,7 @@ theme(
     legend.box.background = element_rect(fill='transparent')
 )
 
+m4<-mds_plot + scale_color_igv()
 mds_plot + scale_color_igv()
 ```
 
@@ -939,6 +944,7 @@ theme(
     legend.box.background = element_rect(fill='transparent')
 )
 
+m5<-mds_plot + scale_color_igv()
 mds_plot + scale_color_igv()
 ```
 
@@ -992,6 +998,7 @@ mds_plot<-ggplot(mds, aes(x = `1`, y = `2`, color = Reads)) +
         legend.box.background = element_rect(fill='transparent')
     )
 
+m6<-mds_plot + scale_color_igv()
 mds_plot + scale_color_igv()
 ```
 
@@ -1047,6 +1054,7 @@ mds_plot<-ggplot(mds, aes(x = `1`, y = `2`, color = shortreads)) +
         legend.box.background = element_rect(fill='transparent')
     )
 
+m7<-mds_plot + scale_color_igv()
 mds_plot + scale_color_igv()
 
 ```
@@ -1099,7 +1107,118 @@ mds_plot<-ggplot(mds, aes(x = `1`, y = `2`, color = ushort_reads)) +
         legend.box.background = element_rect(fill='transparent')
     )
 
+m8<-mds_plot + scale_color_igv()
 mds_plot + scale_color_igv()
+
+```
+
+
+# Contaminación Bacteriana
+
+```{r}
+
+# Añadimos a metadatos
+
+head(bacteria)
+
+bacteria_reads<-data.frame(bacteria$sample, bacteria$value)
+colnames(bacteria_reads)<-c("sample","bacteria_reads")
+cross2<-merge(cross2, bacteria_reads, by="sample")
+
+max(cross2$bacteria_reads)
+min(cross2$bacteria_reads)
+
+
+# Factorizamos
+
+
+cross2<-cross2 %>%
+    mutate(
+        # Create categories
+        bacteria_reads_level = dplyr::case_when(
+            bacteria_reads > 0 & bacteria_reads <= 5 ~ "0-5%",
+            bacteria_reads > 5 & bacteria_reads <= 10 ~ "5-10%",
+            bacteria_reads > 10 & bacteria_reads <= 15 ~ "10-15%",
+            bacteria_reads > 15 & bacteria_reads <= 20 ~ "15-20%",
+            bacteria_reads > 20 & bacteria_reads <= 25 ~ "20-25%",
+            bacteria_reads > 25 & bacteria_reads <= 30 ~ "25-30%",
+            bacteria_reads > 30 & bacteria_reads <= 35 ~ "30-35%",
+            bacteria_reads > 35 & bacteria_reads <= 40 ~ "35-40%",
+            bacteria_reads > 40 & bacteria_reads <= 45 ~ "40-45%",
+        ))
+
+bacteria_reads<-factor(cross2$bacteria_reads_level, levels = c("0-5%", "5-10%", "10-15%", "15-20%", "20-25%", "25-30%", "30-35%", "35-40%","40-45%"))
+
+mds_plot<-ggplot(mds, aes(x = `1`, y = `2`, color = bacteria_reads)) +
+    geom_point(size = 4) + coord_fixed() + ggtitle("MDS Bacteria reads contamination %") + stat_ellipse() +
+    theme(
+        panel.background = element_rect(fill='transparent'),
+        plot.background = element_rect(fill='transparent', color=NA),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.background = element_rect(fill='transparent'),
+        legend.box.background = element_rect(fill='transparent')
+    )
+
+
+m9<-mds_plot + scale_color_igv()
+mds_plot + scale_color_igv()
+
+
+```
+
+
+# Contaminación vírica
+
+```{r}
+
+head(virus)
+
+virus_reads<-data.frame(virus$sample, virus$value)
+colnames(virus_reads)<-c("sample","virus_reads")
+cross2<-merge(cross2, virus_reads, by="sample")
+
+max(cross2$virus_reads)
+min(cross2$virus_reads)
+
+
+# Factorizamos
+
+
+cross2<-cross2 %>%
+    mutate(
+        # Create categories
+        virus_reads_level = dplyr::case_when(
+            virus_reads > 0 & virus_reads <= 0.5 ~ "0-0.5%",
+            virus_reads > 0.5 & virus_reads <= 1 ~ "0.5-1%",
+            virus_reads > 1 & virus_reads <= 1.5 ~ "1-1.5%",
+            virus_reads > 1.5 & virus_reads <= 2 ~ "1.5-2%",
+            virus_reads > 2 & virus_reads <= 2.5 ~ "2-2.5%",
+            virus_reads > 2.5 & virus_reads <= 3 ~ "2.5-3%",
+            virus_reads > 3 & virus_reads <= 3.5 ~ "3-3.5%",
+            virus_reads > 3.5 & virus_reads <= 4 ~ "3.5-4%",
+            virus_reads > 4 & virus_reads <= 4.5 ~ "4-4.5%",
+        ))
+
+
+
+virus_reads<-factor(cross2$virus_reads_level, levels = c("0-0.5%", "0.5-1%", "1-1.5%", "1.5-2%", "2-2.5%", "2.5-3%", "3-3.5%", "3.5-4%","4-4.5%"))
+
+mds_plot<-ggplot(mds, aes(x = `1`, y = `2`, color = virus_reads)) +
+    geom_point(size = 4) + coord_fixed() + ggtitle("MDS Virus reads contamination %") + stat_ellipse() +
+    theme(
+        panel.background = element_rect(fill='transparent'),
+        plot.background = element_rect(fill='transparent', color=NA),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.background = element_rect(fill='transparent'),
+        legend.box.background = element_rect(fill='transparent')
+    )
+
+
+m10<-mds_plot + scale_color_igv()
+mds_plot + scale_color_igv()
+
 
 ```
 
