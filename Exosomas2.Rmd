@@ -623,6 +623,8 @@ cross2[, 'batch_shortname'] <- as.factor(cross2[, 'batch_shortname'])
 
 cross2$sample_shortname<-paste(cross2$batch_shortname, cross2$smp)
 
+cross2$Diagnosis[is.na(cross2$Diagnosis)] = "Control"
+
 
 # Quito las muestras de cerebro
 
@@ -638,15 +640,6 @@ all.equal(colnames(matriz2), cross2$sample)
 
 
 ```
-
-
-
-# Retiro los miRna con menos de 10 conteos en el 10% de las muestras
-
-```{r}
-matriz5<-matriz2[rowSums(matriz2 > 10) > (ncol(matriz) * 0.1),]
-```
-
 
 
 # Por coeficientes de variacion
@@ -761,6 +754,7 @@ counts.keep <- matriz2[keep,]
 
 # Monto la DGEList
 DGEList(counts.keep, group = cross2$batch_shortname)
+dgeObj <- DGEList(counts.keep)
 names(dgeObj)
 logcounts <- cpm(dgeObj,log=TRUE)
 dgeObj_norm <- calcNormFactors(dgeObj)
@@ -845,10 +839,9 @@ mds_plot + scale_color_igv()
 # MDS GGplot VST Diagnosis
 
 ```{r}
+diagnosis<-cross2$Diagnosis
 
-Diagnosis<-cross2$Diagnosis
-
-mds_plot<-ggplot(mds, aes(x = `1`, y = `2`, color = Diagnosis)) +
+mds_plot<-ggplot(mds, aes(x = `1`, y = `2`, color = diagnosis)) +
     geom_point(size = 3) + coord_fixed() + ggtitle("MDS Diagnosis") + stat_ellipse() +
 theme(
     panel.background = element_rect(fill='transparent'),
@@ -894,35 +887,22 @@ mds_plot + scale_color_igv()
 
 ```{r}
 
-# Añadimos la edad como factor a los metadatos
-
-cross2<-cross2 %>%
-mutate(
-        # Create categories
-        age_group = dplyr::case_when(
-            Age <= 15            ~ "0-15",
-            Age > 15 & Age <= 30 ~ "16-30",
-            Age > 30 & Age <= 45 ~ "31-45",
-            Age > 45 & Age <= 60 ~ "46-60",
-            Age > 60 & Age <= 75 ~ "61-75",
-            Age > 76 & Age <= 90 ~ "76-90",
-        ))
-
-age<-cross2$age_group
+age<-cross2$Age
 
 mds_plot<-ggplot(mds, aes(x = `1`, y = `2`, color = age)) +
-    geom_point(size = 5) + coord_fixed() + ggtitle("MDS Age") + stat_ellipse() +
-theme(
-    panel.background = element_rect(fill='transparent'),
-    plot.background = element_rect(fill='transparent', color=NA),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    legend.background = element_rect(fill='transparent'),
-    legend.box.background = element_rect(fill='transparent')
-)
+    geom_point(size = 4) + coord_fixed() + ggtitle("MDS Age") + 
+    scale_color_gradientn(colours = rainbow(6)) +
+    theme(
+        panel.background = element_rect(fill='transparent'),
+        plot.background = element_rect(fill='transparent', color=NA),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.background = element_rect(fill='transparent'),
+        legend.box.background = element_rect(fill='transparent') 
+    )
 
-m4<-mds_plot + scale_color_igv()
-mds_plot + scale_color_igv()
+m4<-mds_plot 
+mds_plot 
 ```
 
 
@@ -964,42 +944,25 @@ cross2<-merge(cross2, Reads, by="sample")
 max(cross2$Reads)
 min(cross2$Reads)
 
-
-# Factorizamos
-
-
-cross2<-cross2 %>%
-    mutate(
-        # Create categories
-        Reads_level = dplyr::case_when(
-            Reads > 20 & Reads <= 30 ~ "20-30%",
-            Reads > 30 & Reads <= 40 ~ "30-40%",
-            Reads > 40 & Reads <= 50 ~ "40-50%",
-            Reads > 50 & Reads <= 60 ~ "50-60%",
-            Reads > 60 & Reads <= 70 ~ "60-70%",
-            Reads > 70 & Reads <= 80 ~ "70-80%",
-            Reads > 80 & Reads <= 90 ~ "80-90%",
-    
-        ))
-
 # Ploteemos
 
 
-Reads<-cross2$Reads_level
+Reads<-cross2$Reads
 
 mds_plot<-ggplot(mds, aes(x = `1`, y = `2`, color = Reads)) +
-    geom_point(size = 4) + coord_fixed() + ggtitle("MDS Reads %") + stat_ellipse() +
+    geom_point(size = 4) + coord_fixed() + ggtitle("MDS Reads %") + 
+    scale_color_gradientn(colours = rainbow(6)) +
     theme(
         panel.background = element_rect(fill='transparent'),
         plot.background = element_rect(fill='transparent', color=NA),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
         legend.background = element_rect(fill='transparent'),
-        legend.box.background = element_rect(fill='transparent')
+        legend.box.background = element_rect(fill='transparent') 
     )
 
-m6<-mds_plot + scale_color_igv()
-mds_plot + scale_color_igv()
+m6<-mds_plot 
+mds_plot 
 ```
 
 
@@ -1019,43 +982,22 @@ max(cross2$Short_reads)
 min(cross2$Short_reads)
 
 
-# Factorizamos
-
-
-cross2<-cross2 %>%
-    mutate(
-        # Create categories
-        Short_reads_level = dplyr::case_when(
-            Short_reads > 0 & Short_reads <= 2.500 ~ "0-2.5%",
-            Short_reads > 2.500 & Short_reads <= 5.00 ~ "2.5-5%",
-            Short_reads > 5.00 & Short_reads <= 7.500 ~ "5-7.5%",
-            Short_reads > 7.500 & Short_reads <= 10.00 ~ "7,5-10%",
-            Short_reads > 10.00 & Short_reads <= 12.500 ~ "10-12.5%",
-            Short_reads > 12.500 & Short_reads <= 15.00 ~ "12.5-15%",
-            Short_reads > 15.00 & Short_reads <= 17.500 ~ "15-17.5%",
-            Short_reads > 17.500 & Short_reads <= 20.00 ~ "17.5-20%",
-            
-        ))
-
-
-# Ploteamos
-
-
-shortreads<-factor(cross2$Short_reads_level, levels = c("0-2.5%", "2.5-5%", "5-7.5%", "7,5-10%", "10-12.5%","12.5-15%", "15-17.5%","17.5-20%"))
+shortreads<-cross2$Short_reads
 
 mds_plot<-ggplot(mds, aes(x = `1`, y = `2`, color = shortreads)) +
-    geom_point(size = 4) + coord_fixed() + ggtitle("MDS Short reads %") + stat_ellipse() +
+    geom_point(size = 4) + coord_fixed() + ggtitle("MDS Short reads %") + 
+    scale_color_gradientn(colours = rainbow(6)) +
     theme(
         panel.background = element_rect(fill='transparent'),
         plot.background = element_rect(fill='transparent', color=NA),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
         legend.background = element_rect(fill='transparent'),
-        legend.box.background = element_rect(fill='transparent')
+        legend.box.background = element_rect(fill='transparent') 
     )
 
-m7<-mds_plot + scale_color_igv()
-mds_plot + scale_color_igv()
+m7<-mds_plot 
+mds_plot 
 
 ```
 
@@ -1076,40 +1018,22 @@ max(cross2$ushort_reads)
 min(cross2$ushort_reads)
 
 
-# Factorizamos
-
-
-cross2<-cross2 %>%
-    mutate(
-        # Create categories
-        ushort_reads_level = dplyr::case_when(
-            ushort_reads > 0 & ushort_reads <= 10 ~ "0-10%",
-            ushort_reads > 10 & ushort_reads <= 20 ~ "10-20%",
-            ushort_reads > 20 & ushort_reads <= 30 ~ "20-30%",
-            ushort_reads > 30 & ushort_reads <= 40 ~ "30-40%",
-            ushort_reads > 40 & ushort_reads <= 50 ~ "40-50%",
-            ushort_reads > 50 & ushort_reads <= 60 ~ "50-60%",
-            ushort_reads > 60 & ushort_reads <= 70 ~ "60-70%",
-            ushort_reads > 70 & ushort_reads <= 80 ~ "70-80%",
-            
-        ))
-
-ushort_reads<-factor(cross2$ushort_reads_level, levels = c("0-10%", "10-20%", "20-30%", "30-40%", "40-50%","50-60%", "60-70%","70-80%"))
+ushort_reads<-cross2$ushort_reads
 
 mds_plot<-ggplot(mds, aes(x = `1`, y = `2`, color = ushort_reads)) +
-    geom_point(size = 4) + coord_fixed() + ggtitle("MDS Ultra short reads %") + stat_ellipse() +
+    geom_point(size = 4) + coord_fixed() + ggtitle("MDS Ultra short reads %") + 
+    scale_color_gradientn(colours = rainbow(6)) +
     theme(
         panel.background = element_rect(fill='transparent'),
         plot.background = element_rect(fill='transparent', color=NA),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
         legend.background = element_rect(fill='transparent'),
-        legend.box.background = element_rect(fill='transparent')
+        legend.box.background = element_rect(fill='transparent') 
     )
 
-m8<-mds_plot + scale_color_igv()
-mds_plot + scale_color_igv()
-
+m8<-mds_plot 
+mds_plot 
 ```
 
 
@@ -1128,43 +1052,22 @@ cross2<-merge(cross2, bacteria_reads, by="sample")
 max(cross2$bacteria_reads)
 min(cross2$bacteria_reads)
 
-
-# Factorizamos
-
-
-cross2<-cross2 %>%
-    mutate(
-        # Create categories
-        bacteria_reads_level = dplyr::case_when(
-            bacteria_reads > 0 & bacteria_reads <= 5 ~ "0-5%",
-            bacteria_reads > 5 & bacteria_reads <= 10 ~ "5-10%",
-            bacteria_reads > 10 & bacteria_reads <= 15 ~ "10-15%",
-            bacteria_reads > 15 & bacteria_reads <= 20 ~ "15-20%",
-            bacteria_reads > 20 & bacteria_reads <= 25 ~ "20-25%",
-            bacteria_reads > 25 & bacteria_reads <= 30 ~ "25-30%",
-            bacteria_reads > 30 & bacteria_reads <= 35 ~ "30-35%",
-            bacteria_reads > 35 & bacteria_reads <= 40 ~ "35-40%",
-            bacteria_reads > 40 & bacteria_reads <= 45 ~ "40-45%",
-        ))
-
-bacteria_reads<-factor(cross2$bacteria_reads_level, levels = c("0-5%", "5-10%", "10-15%", "15-20%", "20-25%", "25-30%", "30-35%", "35-40%","40-45%"))
+bacteria_reads<-cross2$bacteria_reads
 
 mds_plot<-ggplot(mds, aes(x = `1`, y = `2`, color = bacteria_reads)) +
-    geom_point(size = 4) + coord_fixed() + ggtitle("MDS Bacteria reads contamination %") + stat_ellipse() +
+    geom_point(size = 4) + coord_fixed() + ggtitle("MDS Bacteria reads %") + 
+    scale_color_gradientn(colours = rainbow(6)) +
     theme(
         panel.background = element_rect(fill='transparent'),
         plot.background = element_rect(fill='transparent', color=NA),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
         legend.background = element_rect(fill='transparent'),
-        legend.box.background = element_rect(fill='transparent')
+        legend.box.background = element_rect(fill='transparent') 
     )
 
-
-m9<-mds_plot + scale_color_igv()
-mds_plot + scale_color_igv()
-
-
+m9<-mds_plot 
+mds_plot 
 ```
 
 
@@ -1182,43 +1085,22 @@ max(cross2$virus_reads)
 min(cross2$virus_reads)
 
 
-# Factorizamos
-
-
-cross2<-cross2 %>%
-    mutate(
-        # Create categories
-        virus_reads_level = dplyr::case_when(
-            virus_reads > 0 & virus_reads <= 0.5 ~ "0-0.5%",
-            virus_reads > 0.5 & virus_reads <= 1 ~ "0.5-1%",
-            virus_reads > 1 & virus_reads <= 1.5 ~ "1-1.5%",
-            virus_reads > 1.5 & virus_reads <= 2 ~ "1.5-2%",
-            virus_reads > 2 & virus_reads <= 2.5 ~ "2-2.5%",
-            virus_reads > 2.5 & virus_reads <= 3 ~ "2.5-3%",
-            virus_reads > 3 & virus_reads <= 3.5 ~ "3-3.5%",
-            virus_reads > 3.5 & virus_reads <= 4 ~ "3.5-4%",
-            virus_reads > 4 & virus_reads <= 4.5 ~ "4-4.5%",
-        ))
-
-
-
-virus_reads<-factor(cross2$virus_reads_level, levels = c("0-0.5%", "0.5-1%", "1-1.5%", "1.5-2%", "2-2.5%", "2.5-3%", "3-3.5%", "3.5-4%","4-4.5%"))
+virus_reads<-cross2$virus_reads
 
 mds_plot<-ggplot(mds, aes(x = `1`, y = `2`, color = virus_reads)) +
-    geom_point(size = 4) + coord_fixed() + ggtitle("MDS Virus reads contamination %") + stat_ellipse() +
+    geom_point(size = 4) + coord_fixed() + ggtitle("MDS Virus reads %") + 
+    scale_color_gradientn(colours = rainbow(6)) +
     theme(
         panel.background = element_rect(fill='transparent'),
         plot.background = element_rect(fill='transparent', color=NA),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
         legend.background = element_rect(fill='transparent'),
-        legend.box.background = element_rect(fill='transparent')
+        legend.box.background = element_rect(fill='transparent') 
     )
 
-
-m10<-mds_plot + scale_color_igv()
-mds_plot + scale_color_igv()
-
-
+m10<-mds_plot 
+mds_plot 
 ```
+
 
