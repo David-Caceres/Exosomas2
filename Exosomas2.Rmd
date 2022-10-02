@@ -23,6 +23,11 @@ library(cowplot)
 library(data.table)
 library(tibble)
 library(magrittr)
+library(factoextra)
+library(stringr)
+library(base)
+library(Rfast)
+library(swamp)
 ```
 
 
@@ -138,12 +143,19 @@ pheatmap(sampleDistMatrix,
 
 ```{r}
 
+# Añado shortnames
+
+values <- c("A","B","C","D","E","F","G", "H")
+tipos_exo$batch<-as.factor(tipos_exo$batch)
+tipos_exo$batch_shortname <- values[tipos_exo$batch]
+tipos_exo$X<-ifelse(tipos_exo$X=="readsPerc","Reads%")
+
 # Reads
 
 tipos_exo <- tipos_exo |> 
-   mutate(sample1 = reorder(sample, -ifelse(!X %in% "readsPerc", 0, value), FUN = sum))
+    mutate(sample1 = reorder(sample, -ifelse(!X %in% "Reads%", 0, value), FUN = sum))
 
-p1 <- ggplot(tipos_exo,aes(x = sample1, y = value, fill = factor(X, levels=c("readsPerc")), width=1.05)) +
+p1 <- ggplot(tipos_exo,aes(x = sample1, y = value, fill = factor(X, levels=c("Reads%")), width=1.05)) +
     geom_bar( stat = "identity", position = position_stack()) +
     scale_y_continuous(expand = c(0, 0), breaks = seq(0, 100, by = 10)) +
     labs(x = NULL, y= "% reads" , title="Reads % QC", fill="Quality Control") +
@@ -160,12 +172,12 @@ p1 <- ggplot(tipos_exo,aes(x = sample1, y = value, fill = factor(X, levels=c("re
     )
 
 tipos_exo1 <- tipos_exo |>
-    distinct(sample, sample1, batch)
-p_axis <- ggplot(tipos_exo1, aes(x = sample1, y = factor(1), fill = batch)) +
+    distinct(sample, sample1, batch_shortname)
+p_axis <- ggplot(tipos_exo1, aes(x = sample1, y = factor(1), fill = batch_shortname)) +
     geom_tile(width = 1) +
     theme_void() +
-    theme(axis.title.x = element_text(), legend.position=c(1.1,2.1)) +
-    labs(x="Batch Annotation", fill="Batch Annotation")
+    theme(axis.title.x = element_text(), legend.position=c(1.09,2.6)) +
+    labs(x="Batch Annotation", fill="Batch") 
 
 p1_q<-p1 / p_axis + plot_layout(heights = c(8,1))  + scale_fill_igv()
 
@@ -210,7 +222,12 @@ plot_grid(p1_q,p3_qb, rel_widths = c(2, 1))
 # Cortos
 
 
-p_short<-ggplot(short,aes(x = reorder(sample, -value), y = value, fill = X, width=1.05)) +
+short$batch<-as.factor(short$batch)
+short$batch_shortname <- values[short$batch]
+short$X<-ifelse(short$X=="shortReadsPerc","Short reads %")
+
+
+p_short<-ggplot(short,aes(x = reorder(sample, -value), y = value, fill = factor(X, levels=c("Short reads %")), width=1.05)) +
 geom_bar( stat = "identity") +
 scale_y_continuous(expand = c(0, 0), breaks = seq(0, 30, by = 5)) +
 labs(x = NULL, y= "% short reads" , title="Short Reads QC", fill="Quality Control") +
@@ -225,11 +242,11 @@ panel.grid.minor = element_blank(),
 legend.background = element_rect(fill='transparent'),
 legend.box.background = element_rect(fill='transparent')
 )
-p_axis_short <- ggplot(short, aes(x = reorder(sample, -value), y = factor(1), fill = batch)) +
+p_axis_short <- ggplot(short, aes(x = reorder(sample, -value), y = factor(1), fill = batch_shortname)) +
 geom_tile(width = 1) +
 theme_void() +
-theme(axis.title.x = element_text(), legend.position=c(1.06,2.1)) +
-labs(x="Batch Annotation", fill="Batch Annotation")
+theme(axis.title.x = element_text(), legend.position=c(1.09,2.6)) +
+labs(x="Batch Annotation", fill="Batch")
 p3q<-p_short / p_axis_short + plot_layout(heights = c(8, 1))  + scale_fill_igv()
 
 
@@ -267,10 +284,13 @@ plot_grid(p3q,p4_qb, rel_widths = c(2, 1))
 
 ```{r}
 
+ushort$batch<-as.factor(ushort$batch)
+ushort$batch_shortname <- values[ushort$batch]
+ushort$X<-ifelse(ushort$X=="ultraShortReadsPerc","Ultra short %")
 
 # Ultra cortos
 
-p_ushort<-ggplot(ushort,aes(x = reorder(sample, -value), y = value, fill = X, width=1.05)) +
+p_ushort<-ggplot(ushort,aes(x = reorder(sample, -value), y = value, fill= factor(X, levels=c("Ultra short %")), width=1.05)) +
 geom_bar( stat = "identity") +
 scale_y_continuous(expand = c(0, 0), breaks = seq(0, 80, by = 10)) +
 labs(x = NULL, y= "% ultra short reads" , title="Ultra Short Reads QC", fill="Quality Control") +
@@ -285,11 +305,11 @@ panel.grid.minor = element_blank(),
 legend.background = element_rect(fill='transparent'),
 legend.box.background = element_rect(fill='transparent')
 )
-p_axis_ushort <- ggplot(ushort, aes(x = reorder(sample, -value), y = factor(1), fill = batch)) +
+p_axis_ushort <- ggplot(ushort, aes(x = reorder(sample, -value), y = factor(1), fill = batch_shortname)) +
 geom_tile(width = 1) +
 theme_void() +
-theme(axis.title.x = element_text(), legend.position=c(1.14,2.1)) +
-labs(x="Batch Annotation", fill="Batch Annotation")
+theme(axis.title.x = element_text(), legend.position=c(1.09,2.6)) +
+labs(x="Batch Annotation", fill="Batch")
 p5_q<-p_ushort / p_axis_ushort + plot_layout(heights = c(8, 1))  + scale_fill_igv()
 
 
@@ -325,11 +345,18 @@ plot_grid(p5_q,p5_qb, rel_widths = c(2, 1))
 
 ```
 
+
+
 ```{r}
+
+ref.genome$batch<-as.factor(ref.genome$batch)
+ref.genome$batch_shortname <- values[ref.genome$batch]
+
+
 # Genoma de referencia
 
 
-p_ref.genome<-ggplot(ref.genome,aes(x = reorder(sample, -value), y = value, fill = variable, width=1.05)) +
+p_ref.genome<-ggplot(ref.genome,aes(x = reorder(sample, -value), y = value, fill= factor(variable, levels=c("% ref.genome")), width=1.05)) +
 geom_bar( stat = "identity") +
 scale_y_continuous(expand = c(0, 0), breaks = seq(0, 100, by = 10)) +
 labs(x = NULL, y= "% reads" , title="Reference genome % Reads QC", fill="Quality Control") +
@@ -344,11 +371,11 @@ panel.grid.minor = element_blank(),
 legend.background = element_rect(fill='transparent'),
 legend.box.background = element_rect(fill='transparent')
 )
-p_axis_ref.genome<- ggplot(ref.genome, aes(x = reorder(sample, -value), y = factor(1), fill = batch)) +
+p_axis_ref.genome<- ggplot(ref.genome, aes(x = reorder(sample, -value), y = factor(1), fill = batch_shortname)) +
 geom_tile(width = 1) +
 theme_void() +
-theme(axis.title.x = element_text(), legend.position=c(1.14,2.1)) +
-labs(x="Batch Annotation", fill="Batch Annotation")
+theme(axis.title.x = element_text(), legend.position=c(1.12,2.6)) +
+labs(x="Batch Annotation", fill="Batch")
 p6_q<-p_ref.genome / p_axis_ref.genome + plot_layout(heights = c(8, 1))  + scale_fill_igv()
 
 
@@ -385,6 +412,9 @@ plot_grid(p6_q,p6_qb, rel_widths = c(2, 1))
 
 
 ```{r}
+unmapped$batch<-as.factor(unmapped$batch)
+unmapped$batch_shortname <- values[unmapped$batch]
+unmapped$variable<-ifelse(unmapped$variable=="unmapped","Unmapped %")
 # Unmapped
 
 p_unmapped<-ggplot(unmapped,aes(x = reorder(sample, -value), y = value, fill = variable, width=1.05)) +
@@ -402,11 +432,11 @@ panel.grid.minor = element_blank(),
 legend.background = element_rect(fill='transparent'),
 legend.box.background = element_rect(fill='transparent')
 )
-p_axis_unmapped<- ggplot(unmapped, aes(x = reorder(sample, -value), y = factor(1), fill = batch)) +
+p_axis_unmapped<- ggplot(unmapped, aes(x = reorder(sample, -value), y = factor(1), fill = batch_shortname)) +
 geom_tile(width = 1) +
 theme_void() +
-theme(axis.title.x = element_text(), legend.position=c(1.14,2.1)) +
-labs(x="Batch Annotation", fill="Batch Annotation")
+theme(axis.title.x = element_text(), legend.position=c(1.12,2.6)) +
+labs(x="Batch Annotation", fill="Batch")
 p7_q<-p_unmapped / p_axis_unmapped + plot_layout(heights = c(8, 1))  + scale_fill_igv()
 
 
@@ -441,6 +471,9 @@ plot_grid(p7_q,p7_qb, rel_widths = c(2, 1))
 
 
 ```{r}
+bacteria$batch<-as.factor(bacteria$batch)
+bacteria$batch_shortname <- values[bacteria$batch]
+bacteria$variable<-ifelse(bacteria$variable=="bacteria","Bacteria %")
 
 # Bacteria
 
@@ -459,11 +492,11 @@ panel.grid.minor = element_blank(),
 legend.background = element_rect(fill='transparent'),
 legend.box.background = element_rect(fill='transparent')
 )
-p_axis_bacteria<- ggplot(bacteria, aes(x = reorder(sample, -value), y = factor(1), fill = batch)) +
+p_axis_bacteria<- ggplot(bacteria, aes(x = reorder(sample, -value), y = factor(1), fill = batch_shortname)) +
 geom_tile(width = 1) +
 theme_void() +
-theme(axis.title.x = element_text(), legend.position=c(1.14,2.1)) +
-labs(x="Batch Annotation", fill="Batch Annotation")
+theme(axis.title.x = element_text(), legend.position=c(1.12,2.6)) +
+labs(x="Batch Annotation", fill="Batch")
 p8_q<-p_bacteria / p_axis_bacteria + plot_layout(heights = c(8, 1))  + scale_fill_igv()
 
 
@@ -502,6 +535,9 @@ plot_grid(p8_q,p8_qb, rel_widths = c(2, 1))
 ```{r}
 # Virus
 
+virus$batch<-as.factor(virus$batch)
+virus$batch_shortname <- values[virus$batch]
+virus$variable<-ifelse(virus$variable=="virus","Virus %")
 
 p_virus<-ggplot(virus,aes(x = reorder(sample, -value), y = value, fill = variable, width=1.05)) +
 geom_bar( stat = "identity") +
@@ -518,10 +554,10 @@ panel.grid.minor = element_blank(),
 legend.background = element_rect(fill='transparent'),
 legend.box.background = element_rect(fill='transparent')
 )
-p_axis_virus<- ggplot(virus, aes(x = reorder(sample, -value), y = factor(1), fill = batch)) +
+p_axis_virus<- ggplot(virus, aes(x = reorder(sample, -value), y = factor(1), fill = batch_shortname)) +
 geom_tile(width = 1) +
 theme_void() +
-theme(axis.title.x = element_text(), legend.position=c(1.14,2.1)) +
+theme(axis.title.x = element_text(), legend.position=c(1.12,2.6)) +
 labs(x="Batch Annotation", fill="Batch Annotation")
 p9_q<-p_virus / p_axis_virus + plot_layout(heights = c(8, 1))  + scale_fill_igv()
 
@@ -604,6 +640,7 @@ cross<-read.csv(file="/home/david_caceres/Exosomas/Exosomas2/CrossSectional.minI
 
 # Preparemos los metadatos
 
+meta2 <- strsplit(as.character(meta$sample),'_EXO_')
 
 
 meta3<-do.call(rbind, meta2)
@@ -628,7 +665,7 @@ cross2$Diagnosis[is.na(cross2$Diagnosis)] = "Control"
 
 # Quito las muestras de cerebro
 
-matriz2 <- matriz %>% select(-contains("Brain"))
+matriz2<-matriz %>% dplyr::select(-contains("Brain"))
 
 # Damos el mismo orden de columnas a matriz y metadatos
 
@@ -641,106 +678,10 @@ all.equal(colnames(matriz2), cross2$sample)
 
 ```
 
-
-# Por coeficientes de variacion
-
+# Análisis 
 
 ```{r}
 
-library(Rfast)
-# Lo necesito como matriz
-matriz3<-as.data.matrix(matriz5)
-
-# Saco los coeficientes de variacion por filas
-
-matriz3<-rowcvs(matriz3, ln = FALSE, unbiased = FALSE)
-
-# Añado los cv como columna en el data frame
-matriz5$cv<-matriz3
-
-# Ordeno todo el data frame por cv
-
-matriz4<-matriz5[order(matriz5$cv, decreasing = TRUE),]
-
-# Extraigo el top 20%. Me quedo con 85 lecturas
-
-matriz6<-head(matriz4[order(matriz4$cv,decreasing=T),],.2*nrow(matriz4))
-
-# Escribo la tabla
-
-
-write.table(matriz6, file = "matriz_top20_cv.tsv", append = FALSE, quote = TRUE, sep = "\t ")
-
-
-```
-
-
-
-
-```{r}
-
-# Leo la tabla (top20%) ya corregida
-
-matriz20<-read.delim(file="/home/david_caceres/Exosomas/Exosomas2/Expresion/Matrices de Expresion/Top20_cv2.tsv", row.names=1)
-
-# Doy nombres cortos a cada batch
-
-cross2[, 'batch_shortname'] <- as.factor(cross2[, 'batch_shortname'])
-
-# Elimino la columna de los cv
-
-matriz_top20_cv_1<-matriz_top20_cv[,-267]
-
-# Creo una lista de DGlist con los grupos. Agrupo por batch
-
-Batch=cross2$batch_shortname
-
-y <- DGEList(matriz20, group = group)
-
-
-# Normalizacion
-
-y<- calcNormFactors(y)
-y$samples
-
-
-col.status <- c("blue","red","dark green","yellow","lightblue4","orange3", "lightskyblue", "violetred4")[Batch]
-
-
-plotMDS(y,col=col.status, main="Top 20% miRna cv", pch=16, cex=1.4)
-legend("right", inset=c(-0.092,0),
-       fill=c("blue","red","dark green","yellow","lightblue4","orange3", "lightskyblue", "violetred4"), 
-       legend=levels(group), title="Batch")
-
-
-
-ggplot(matriz20, aes(x, y, label=rownames(matriz20))) +
-geom_text(alpha=0.8,size=3)
-
-
-
-d <- dist(matriz20)
-mds <- cmdscale(d)
-mds2 <- as.data.frame(as.matrix(mds))
-ggplot(mds2, aes(x = `V1`, y = `V2`, label=rownames(matriz20))) +
-    geom_point()+
-    stat_ellipse()
-
-
-
-
-
-```
-
-
-# Análisis 2
-
-```{r}
-# Contajes ya filtrados
-
-
-colnames(matriz2) <- cross2$sample_shortname
-head(matriz2)
 
 # Filtramos por CPM y eliminamos conteos bajos
 
@@ -776,11 +717,6 @@ legend=levels(cross2$batch_shortname), title="Batch")
 # MDS GGplot VST Batch
 
 ```{r}
-
-
-colnames(matriz2) <- cross2$sample_shortname
-head(matriz2)
-
 # Filtramos por CPM y eliminamos conteos bajos
 
 counts.CPM <- cpm(matriz2)
@@ -791,9 +727,10 @@ head(thresh)
 keep <- rowSums(thresh) >= 2
 counts.keep <- matriz2[keep,]
 
-
-
 # Matriz de diseño
+
+
+group <- paste(cross2$Age,cross2$Gender,cross2$Diagnosis,cross2$batch_shortname,  sep="\t" )
 
 design  <-  model.matrix(~0+group)
 
@@ -810,7 +747,19 @@ barplot(colSums(assay(dds)), names=colData(dds)$SampleName, las=2, main="Barplot
 abline(h=20e6, lty=2)
 
 
+
+```
+
+
+
+```{r}
 # Multi dimensional scaling
+
+
+sampleDists <- dist(t(logcounts_norm))
+
+sampleDistMatrix <- as.matrix( sampleDists)
+
 
 vsd <- varianceStabilizingTransformation(dds,blind=TRUE)
 
@@ -818,7 +767,7 @@ mds <- as.data.frame(colData(vsd))  %>%
 cbind(cmdscale(sampleDistMatrix))
 
 
-mds_plot<-ggplot(mds, aes(x = `1`, y = `2`, color = Batch)) +
+mds_plot<-ggplot(mds, aes(x = `1`, y = `2`, color = batch_shortname)) +
     geom_point(size = 3) + coord_fixed() + ggtitle("MDS Batch") + stat_ellipse() +
 theme(
     panel.background = element_rect(fill='transparent'),
@@ -834,7 +783,6 @@ m1<-mds_plot + scale_color_igv()
 mds_plot + scale_color_igv()
 
 ```
-
 
 # MDS GGplot VST Diagnosis
 
@@ -1103,4 +1051,26 @@ m10<-mds_plot
 mds_plot 
 ```
 
+
+# Paquete swamp para delimitar de donde viene la variación. Empirical bayes. Combat, combinación de batches
+
+```{r}
+cross3<-data.frame(cross2$Age,cross2$Gender,cross2$Diagnosis,cross2$batch_shortname, cross2$Reads,cross2$Short_reads,cross2$ushort_reads, cross2$bacteria_reads, cross2$virus_reads)
+rownames(cross3)<-cross2$sample
+colnames(cross3)<-c("Age","Gender","Diagnosis","Batch","Reads","Short Reads", "Ultra short reads", "Bacteria", "Virus")
+all.equal(colnames(logcounts_norm), rownames(cross3))
+
+cross3$Gender<-as.factor(cross3$Gender)
+cross3$Age<-as.numeric(cross3$Age)
+cross3$Diagnosis<-as.factor(cross3$Diagnosis)
+
+
+com1<-combat(logcounts_norm, cross3$Batch, batchcolumn=1)
+
+prince.plot(prince(com1,cross3,top=10))
+# No puedo usar kill.pc porque el género es una asociación biológica.
+
+
+
+```
 
