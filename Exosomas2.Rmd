@@ -3,6 +3,8 @@ title: "Exosomas"
 author: "David Cáceres"
 date: "6/7/2022"
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
@@ -743,16 +745,12 @@ counts.keep <- matriz2[keep,]
 
 counts.CPM <- cpm(matriz2)
 thresh <- counts.CPM > 0.5
-head(thresh)
 
 # Me quedo con los que pasan el umbral
 keep <- rowSums(thresh) >= 20
 counts.keep <- matriz2[keep,]
 
 # Matriz de diseño
-
-
-#group <- paste(cross2$Age,cross2$Gender,cross2$Diagnosis,cross2$batch_shortname,  sep="\t" )
 
 design  <-  model.matrix(~0+cross2$Diagnosis)
 
@@ -772,16 +770,7 @@ dim(dds)
 ```{r}
 # Multi dimensional scaling
 
-
-#sampleDists <- dist(t(logcounts_norm))
-
-#sampleDistMatrix <- as.matrix( sampleDists)
-
-
 vsd <- varianceStabilizingTransformation(dds,blind=TRUE)
-
-# mds <- as.data.frame(colData(vsd))  %>%
-# cbind(cmdscale(sampleDistMatrix))
 
 mds <- cmdscale(dist(t(assay(vsd))))
 cross2.mds <- merge(x = cross2,y = mds,by.x='sample',by.y='row.names')
