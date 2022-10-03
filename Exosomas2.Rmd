@@ -662,6 +662,28 @@ cross2$sample_shortname<-paste(cross2$batch_shortname, cross2$smp)
 
 cross2$Diagnosis[is.na(cross2$Diagnosis)] = "Control"
 
+cross2<-cross2[,-2]
+
+Reads<-data.frame(tipos_exo$sample,tipos_exo$value)
+colnames(Reads)<-c("sample","Reads")
+cross2<-merge(cross2, Reads, by="sample")
+
+Short_reads<-data.frame(short$sample,short$value)
+colnames(Short_reads)<-c("sample","Short_reads")
+cross2<-merge(cross2, Short_reads, by="sample")
+
+Ultra_short_reads<-data.frame(ushort$sample,ushort$value)
+colnames(Ultra_short_reads)<-c("sample","Ultra_short_reads")
+cross2<-merge(cross2, Ultra_short_reads, by="sample")
+
+Bacteria<-data.frame(bacteria$sample,bacteria$value)
+colnames(Bacteria)<-c("sample","Bacteria")
+cross2<-merge(cross2, Bacteria, by="sample")
+
+Virus<-data.frame(virus$sample,virus$value)
+colnames(Virus)<-c("sample","Virus")
+cross2<-merge(cross2, Virus, by="sample")
+
 
 # Quito las muestras de cerebro
 
@@ -690,24 +712,24 @@ thresh <- counts.CPM > 0.5
 head(thresh)
 
 # Me quedo con los que pasan el umbral
-keep <- rowSums(thresh) >= 2
+keep <- rowSums(thresh) >= 20
 counts.keep <- matriz2[keep,]
 
-# Monto la DGEList
-DGEList(counts.keep, group = cross2$batch_shortname)
-dgeObj <- DGEList(counts.keep)
-names(dgeObj)
-logcounts <- cpm(dgeObj,log=TRUE)
-dgeObj_norm <- calcNormFactors(dgeObj)
-logcounts_norm <- cpm(dgeObj_norm,log=TRUE)
-sampleDists <- dist(t(logcounts_norm))
-cross2$batch_shortname <- factor (cross2$batch_shortname)
-col.status <- c("blue","red","dark green","yellow","lightblue4","orange3", "lightskyblue", "violetred4")[cross2$batch_shortname]
-data.frame(cross2$batch_shortname,col.status)
-plotMDS(logcounts_norm,col=col.status, main="Batch", cex=0.9, pch=16)
-legend("right", inset=c(-0.092,0),
-fill=c("blue","red","dark green","yellow","lightblue4","orange3", "lightskyblue", "violetred4"),
-legend=levels(cross2$batch_shortname), title="Batch")
+# # Monto la DGEList
+# DGEList(counts.keep, group = cross2$batch_shortname)
+# dgeObj <- DGEList(counts.keep)
+# names(dgeObj)
+# logcounts <- cpm(dgeObj,log=TRUE)
+# dgeObj_norm <- calcNormFactors(dgeObj)
+# logcounts_norm <- cpm(dgeObj_norm,log=TRUE)
+# sampleDists <- dist(t(logcounts_norm))
+# cross2$batch_shortname <- factor (cross2$batch_shortname)
+# col.status <- c("blue","red","dark green","yellow","lightblue4","orange3", "lightskyblue", "violetred4")[cross2$batch_shortname]
+# data.frame(cross2$batch_shortname,col.status)
+# plotMDS(logcounts_norm,col=col.status, main="Batch", cex=0.9, pch=16)
+# legend("right", inset=c(-0.092,0),
+# fill=c("blue","red","dark green","yellow","lightblue4","orange3", "lightskyblue", "violetred4"),
+# legend=levels(cross2$batch_shortname), title="Batch")
 
 
 ```
@@ -724,15 +746,15 @@ thresh <- counts.CPM > 0.5
 head(thresh)
 
 # Me quedo con los que pasan el umbral
-keep <- rowSums(thresh) >= 2
+keep <- rowSums(thresh) >= 20
 counts.keep <- matriz2[keep,]
 
 # Matriz de diseño
 
 
-group <- paste(cross2$Age,cross2$Gender,cross2$Diagnosis,cross2$batch_shortname,  sep="\t" )
+#group <- paste(cross2$Age,cross2$Gender,cross2$Diagnosis,cross2$batch_shortname,  sep="\t" )
 
-design  <-  model.matrix(~0+group)
+design  <-  model.matrix(~0+cross2$Diagnosis)
 
 # Objeto de DESseq
 
@@ -741,11 +763,6 @@ colData = cross2,
 design = design)
 
 dim(dds)
-
-barplot(colSums(assay(dds)), names=colData(dds)$SampleName, las=2, main="Barplot of library sizes")
-
-abline(h=20e6, lty=2)
-
 
 
 ```
@@ -756,319 +773,73 @@ abline(h=20e6, lty=2)
 # Multi dimensional scaling
 
 
-sampleDists <- dist(t(logcounts_norm))
+#sampleDists <- dist(t(logcounts_norm))
 
-sampleDistMatrix <- as.matrix( sampleDists)
+#sampleDistMatrix <- as.matrix( sampleDists)
 
 
 vsd <- varianceStabilizingTransformation(dds,blind=TRUE)
 
-mds <- as.data.frame(colData(vsd))  %>%
-cbind(cmdscale(sampleDistMatrix))
+# mds <- as.data.frame(colData(vsd))  %>%
+# cbind(cmdscale(sampleDistMatrix))
+
+mds <- cmdscale(dist(t(assay(vsd))))
+cross2.mds <- merge(x = cross2,y = mds,by.x='sample',by.y='row.names')
+
+colnames(cross2.mds)<-c("sample","OMICID","Age","Sex","Race","Diagnosis","Center","PatientID","batch","Batch" ,"smp","sample_shortname","Reads","Short_reads","Ultra_short_reads","Bacteria","Virus","V1","V2")
 
 
-mds_plot<-ggplot(mds, aes(x = `1`, y = `2`, color = batch_shortname)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Batch") + stat_ellipse() +
-theme(
-    panel.background = element_rect(fill='transparent'),
-    plot.background = element_rect(fill='transparent', color=NA),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    legend.background = element_rect(fill='transparent'),
-    legend.box.background = element_rect(fill='transparent')
-)
+ggplot(cross2.mds, aes(x = V1, y = V2, color = Batch)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Batch") + stat_ellipse() + theme_bw() + scale_color_igv()
 
-m1<-mds_plot + scale_color_igv()
+ggplot(cross2.mds, aes(x = V1, y = V2, color = Sex)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Sex") + stat_ellipse() + theme_bw() + scale_color_igv()
 
-mds_plot + scale_color_igv()
+ggplot(cross2.mds, aes(x = V1, y = V2, color = Diagnosis)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Diagnosis") + stat_ellipse() + theme_bw() + scale_color_igv()
 
-```
+ggplot(cross2.mds, aes(x = V1, y = V2, color = Center)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Center") + stat_ellipse() + theme_bw() + scale_color_igv()
 
-# MDS GGplot VST Diagnosis
+ggplot(cross2.mds, aes(x = V1, y = V2, color = Age)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Age") + theme_bw() + scale_color_gradient(low="white", high="red")
 
-```{r}
-diagnosis<-cross2$Diagnosis
+ggplot(cross2.mds, aes(x = V1, y = V2, color = Reads)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Reads") + theme_bw() + scale_color_gradient(low="white", high="red")
 
-mds_plot<-ggplot(mds, aes(x = `1`, y = `2`, color = diagnosis)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Diagnosis") + stat_ellipse() +
-theme(
-    panel.background = element_rect(fill='transparent'),
-    plot.background = element_rect(fill='transparent', color=NA),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    legend.background = element_rect(fill='transparent'),
-    legend.box.background = element_rect(fill='transparent')
-)
+ggplot(cross2.mds, aes(x = V1, y = V2, color = Short_reads)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Short reads") + theme_bw() + scale_color_gradient(low="white", high="red")
 
-m2<-mds_plot + scale_color_igv()
-mds_plot + scale_color_igv()
+ggplot(cross2.mds, aes(x = V1, y = V2, color = Ultra_short_reads)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Ultra short reads") + theme_bw() + scale_color_gradient(low="white", high="red")
 
-```
+ggplot(cross2.mds, aes(x = V1, y = V2, color = Bacteria)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Bacteria") + theme_bw() + scale_color_gradient(low="white", high="dark blue")
 
-
-# MDS GGplot VST Gender
-
-```{r}
-
-Gender<-cross2$Gender
-
-mds_plot<-ggplot(mds, aes(x = `1`, y = `2`, color = Gender)) +
-    geom_point(size = 4) + coord_fixed() + ggtitle("MDS Gender") + stat_ellipse() +
-theme(
-    panel.background = element_rect(fill='transparent'),
-    plot.background = element_rect(fill='transparent', color=NA),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    legend.background = element_rect(fill='transparent'),
-    legend.box.background = element_rect(fill='transparent')
-)
-
-m3<-mds_plot + scale_color_igv()
-mds_plot + scale_color_igv()
-```
-
-
-
-
-# MDS GGplot VST Age
-
-
-```{r}
-
-age<-cross2$Age
-
-mds_plot<-ggplot(mds, aes(x = `1`, y = `2`, color = age)) +
-    geom_point(size = 4) + coord_fixed() + ggtitle("MDS Age") + 
-    scale_color_gradientn(colours = rainbow(6)) +
-    theme(
-        panel.background = element_rect(fill='transparent'),
-        plot.background = element_rect(fill='transparent', color=NA),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        legend.background = element_rect(fill='transparent'),
-        legend.box.background = element_rect(fill='transparent') 
-    )
-
-m4<-mds_plot 
-mds_plot 
-```
-
-
-# MDS GGplot VST Center
-
-```{r}
-
-
-center<-cross2$Center
-
-mds_plot<-ggplot(mds, aes(x = `1`, y = `2`, color = Center)) +
-    geom_point(size = 4) + coord_fixed() + ggtitle("MDS Center") + stat_ellipse() +
-theme(
-    panel.background = element_rect(fill='transparent'),
-    plot.background = element_rect(fill='transparent', color=NA),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    legend.background = element_rect(fill='transparent'),
-    legend.box.background = element_rect(fill='transparent')
-)
-
-m5<-mds_plot + scale_color_igv()
-mds_plot + scale_color_igv()
-```
-
-
-
-# Antes de plotear los valores de miRnaQC, tenemos que añadirlos a los metadatos y factorizar algunos valores.
-
-# Reads 
-
-```{r}
-head(tipos_exo)
-
-Reads<-data.frame(tipos_exo$sample, tipos_exo$value)
-colnames(Reads)<-c("sample","Reads")
-cross2<-merge(cross2, Reads, by="sample")
-
-max(cross2$Reads)
-min(cross2$Reads)
-
-# Ploteemos
-
-
-Reads<-cross2$Reads
-
-mds_plot<-ggplot(mds, aes(x = `1`, y = `2`, color = Reads)) +
-    geom_point(size = 4) + coord_fixed() + ggtitle("MDS Reads %") + 
-    scale_color_gradientn(colours = rainbow(6)) +
-    theme(
-        panel.background = element_rect(fill='transparent'),
-        plot.background = element_rect(fill='transparent', color=NA),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        legend.background = element_rect(fill='transparent'),
-        legend.box.background = element_rect(fill='transparent') 
-    )
-
-m6<-mds_plot 
-mds_plot 
-```
-
-
-# Short Reads
-
-```{r}
-
-# Añadimos a metadatos
-
-head(short)
-
-Short_reads<-data.frame(short$sample, short$value)
-colnames(Short_reads)<-c("sample","Short_reads")
-cross2<-merge(cross2, Short_reads, by="sample")
-
-max(cross2$Short_reads)
-min(cross2$Short_reads)
-
-
-shortreads<-cross2$Short_reads
-
-mds_plot<-ggplot(mds, aes(x = `1`, y = `2`, color = shortreads)) +
-    geom_point(size = 4) + coord_fixed() + ggtitle("MDS Short reads %") + 
-    scale_color_gradientn(colours = rainbow(6)) +
-    theme(
-        panel.background = element_rect(fill='transparent'),
-        plot.background = element_rect(fill='transparent', color=NA),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        legend.background = element_rect(fill='transparent'),
-        legend.box.background = element_rect(fill='transparent') 
-    )
-
-m7<-mds_plot 
-mds_plot 
+ggplot(cross2.mds, aes(x = V1, y = V2, color = Virus)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Virus") + theme_bw() + scale_color_gradient(low="white", high="dark blue")
 
 ```
-
-
-# Ultra shorts
-
-```{r}
-
-# Añadimos a metadatos
-
-head(ushort)
-
-ushort_reads<-data.frame(ushort$sample, ushort$value)
-colnames(ushort_reads)<-c("sample","ushort_reads")
-cross2<-merge(cross2, ushort_reads, by="sample")
-
-max(cross2$ushort_reads)
-min(cross2$ushort_reads)
-
-
-ushort_reads<-cross2$ushort_reads
-
-mds_plot<-ggplot(mds, aes(x = `1`, y = `2`, color = ushort_reads)) +
-    geom_point(size = 4) + coord_fixed() + ggtitle("MDS Ultra short reads %") + 
-    scale_color_gradientn(colours = rainbow(6)) +
-    theme(
-        panel.background = element_rect(fill='transparent'),
-        plot.background = element_rect(fill='transparent', color=NA),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        legend.background = element_rect(fill='transparent'),
-        legend.box.background = element_rect(fill='transparent') 
-    )
-
-m8<-mds_plot 
-mds_plot 
-```
-
-
-# Contaminación Bacteriana
-
-```{r}
-
-# Añadimos a metadatos
-
-head(bacteria)
-
-bacteria_reads<-data.frame(bacteria$sample, bacteria$value)
-colnames(bacteria_reads)<-c("sample","bacteria_reads")
-cross2<-merge(cross2, bacteria_reads, by="sample")
-
-max(cross2$bacteria_reads)
-min(cross2$bacteria_reads)
-
-bacteria_reads<-cross2$bacteria_reads
-
-mds_plot<-ggplot(mds, aes(x = `1`, y = `2`, color = bacteria_reads)) +
-    geom_point(size = 4) + coord_fixed() + ggtitle("MDS Bacteria reads %") + 
-    scale_color_gradientn(colours = rainbow(6)) +
-    theme(
-        panel.background = element_rect(fill='transparent'),
-        plot.background = element_rect(fill='transparent', color=NA),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        legend.background = element_rect(fill='transparent'),
-        legend.box.background = element_rect(fill='transparent') 
-    )
-
-m9<-mds_plot 
-mds_plot 
-```
-
-
-# Contaminación vírica
-
-```{r}
-
-head(virus)
-
-virus_reads<-data.frame(virus$sample, virus$value)
-colnames(virus_reads)<-c("sample","virus_reads")
-cross2<-merge(cross2, virus_reads, by="sample")
-
-max(cross2$virus_reads)
-min(cross2$virus_reads)
-
-
-virus_reads<-cross2$virus_reads
-
-mds_plot<-ggplot(mds, aes(x = `1`, y = `2`, color = virus_reads)) +
-    geom_point(size = 4) + coord_fixed() + ggtitle("MDS Virus reads %") + 
-    scale_color_gradientn(colours = rainbow(6)) +
-    theme(
-        panel.background = element_rect(fill='transparent'),
-        plot.background = element_rect(fill='transparent', color=NA),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        legend.background = element_rect(fill='transparent'),
-        legend.box.background = element_rect(fill='transparent') 
-    )
-
-m10<-mds_plot 
-mds_plot 
-```
-
 
 # Paquete swamp para delimitar de donde viene la variación. Empirical bayes. Combat, combinación de batches
 
 ```{r}
-cross3<-data.frame(cross2$Age,cross2$Gender,cross2$Diagnosis,cross2$batch_shortname, cross2$Reads,cross2$Short_reads,cross2$ushort_reads, cross2$bacteria_reads, cross2$virus_reads)
+cross3<-data.frame(cross2$Age,cross2$Gender,cross2$Diagnosis,cross2$batch_shortname, cross2$Reads,cross2$Short_reads,cross2$Ultra_short_reads, cross2$Bacteria, cross2$Virus)
 rownames(cross3)<-cross2$sample
 colnames(cross3)<-c("Age","Gender","Diagnosis","Batch","Reads","Short Reads", "Ultra short reads", "Bacteria", "Virus")
-all.equal(colnames(logcounts_norm), rownames(cross3))
+all.equal(colnames(vsd), rownames(cross3))
 
 cross3$Gender<-as.factor(cross3$Gender)
 cross3$Age<-as.numeric(cross3$Age)
 cross3$Diagnosis<-as.factor(cross3$Diagnosis)
 
 
-com1<-combat(logcounts_norm, cross3$Batch, batchcolumn=1)
+#com1<-combat(logcounts_norm, cross3$Batch, batchcolumn=1)
 
-prince.plot(prince(com1,cross3,top=10))
-# No puedo usar kill.pc porque el género es una asociación biológica.
+
+pr_out <- prince(assay(vsd),cross3,top=20,center = TRUE)
+prince.plot(pr_out,note = TRUE,Rsquared = TRUE)
+# No puedo usar kill.pc porque el género es una   asociación biológica.
 
 
 
