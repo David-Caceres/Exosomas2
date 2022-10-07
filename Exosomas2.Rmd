@@ -831,7 +831,7 @@ prince.plot(pr_out,note = TRUE,Rsquared = TRUE)
 # Pasamos este script por cada carpeta para montar su matriz de expresión.
 
 
-setwd("/home/david_caceres/Exosomas/Exosomas2/small/Expresion_yRNA//")
+setwd("/home/david_caceres/Exosomas/Exosomas2/small/Expresion_hairpin/")
 filenames <- list.files(pattern="*.tsv", recursive=TRUE) # Leo los archivos de una carpeta
 all_files <- lapply(filenames,function(x) { # Cargo los archivos y añado espacios
 read.table(file = x,
@@ -843,15 +843,214 @@ matrixA<-rbindlist(list3,fill=TRUE) # Uno todos los dataframes en uno
 matrixA %>% distinct() # Compruebo si hay duplicados en la columna de small
 list4 <- lapply(list3, function(x) x[!duplicated(x$name),]) #elimino los duplicados
 matrixA<-rbindlist(list4,fill=TRUE)
-matrixA[is.na(matrixA)] = 0 # Elimino los NA
 matrixA<-matrixA %>%   # Colapso los datos
     group_by(name) %>% 
     summarise(across(starts_with("x"), ~sum(., na.rm = TRUE)))
-write.table(matrixA, file = "matrix_yRNA", append = FALSE, quote = TRUE, sep = "\t ")
+rowSums(matrixA[,2:274])==0 # Vemos si hay filas con ceros
+write.table(matrixA, file = "matrix_yRNA.tsv", append = FALSE, quote = TRUE, sep = "\t ")
 ```
 
 
 
 
+## MDS Small RNAs
 
+```{r}
+
+# Cargamos, quitamos las X y las muestras de cerebro
+matriz_cdna<-read.delim(file="/home/david_caceres/Exosomas/Exosomas2/small/Expresion_cdna/matrix_cdna.tsv", row.names=1)
+matriz_cdna <- matriz_cdna %>% select(-contains("Brain"))
+matriz_cdna <- data.frame(matriz_cdna[,-1], row.names = matriz_cdna[,1])
+matriz_cdna <- matriz_cdna %>% 
+    rename_with(~ str_remove(., "X"), everything())
+
+matriz_genomic_tRNA<-read.delim(file="/home/david_caceres/Exosomas/Exosomas2/small/Expresion_genomic_tRNA//matrix_genomic_tRNA.tsv", row.names=1)
+matriz_genomic_tRNA <- matriz_genomic_tRNA %>% select(-contains("Brain"))
+matriz_genomic_tRNA <- data.frame(matriz_genomic_tRNA[,-1], row.names = matriz_genomic_tRNA[,1])
+matriz_genomic_tRNA <- matriz_genomic_tRNA %>% 
+    rename_with(~ str_remove(., "X"), everything())
+
+
+matriz_hairpin<-read.delim(file="/home/david_caceres/Exosomas/Exosomas2/small/Expresion_hairpin/matrix_hairpin.tsv",row.names=1)
+matriz_hairpin <- matriz_hairpin %>% select(-contains("Brain"))
+matriz_hairpin <- data.frame(matriz_hairpin[,-1], row.names = matriz_hairpin[,1])
+matriz_hairpin <- matriz_hairpin %>% 
+    rename_with(~ str_remove(., "X"), everything())
+
+
+matriz_ncRNA<-read.delim(file="/home/david_caceres/Exosomas/Exosomas2/small/Expresion_ncRNA/matrix_ncRNA.tsv", row.names=1)
+matriz_ncRNA <- matriz_ncRNA %>% 
+    rename_with(~ str_remove(., "X"), everything())
+matriz_ncRNA <- matriz_ncRNA %>% select(-contains("Brain"))
+
+matriz_vRNA<-read.delim(file="/home/david_caceres/Exosomas/Exosomas2/small/Expresion_vRNA/matrix_vRNA.tsv", row.names=1)
+matriz_vRNA <- matriz_vRNA %>% 
+    rename_with(~ str_remove(., "X"), everything())
+matriz_vRNA <- matriz_vRNA %>% select(-contains("Brain"))
+
+matriz_yRNA<-read.delim(file="/home/david_caceres/Exosomas/Exosomas2/small/Expresion_yRNA/matrix_yRNA.tsv", row.names=1)
+matriz_yRNA <- matriz_yRNA %>% 
+    rename_with(~ str_remove(., "X"), everything())
+matriz_yRNA <- matriz_yRNA %>% select(-contains("Brain"))
+```
+
+
+# Análisis cdna
+
+
+```{r}
+
+
+cross3<-cross2
+
+
+# Damos el mismo orden de columnas a matriz y metadatos
+
+setcolorder(matriz_cdna,cross3$sample)
+
+# Compruebo que sean iguales
+
+all.equal(colnames(matriz_cdna), cross3$sample)
+
+
+# # SI obtengo error de estabilizacion, quito las columnas que no tienen valores
+# matriz_cdna<-matriz_cdna[, colSums(matriz_cdna != 0) > 0]
+# lol=colSums(matriz_cdna)>10
+# conjunto<-which(lol==TRUE)
+# 
+# cross3<-cross3[-c(29,38,45,48,50,51,70,89,94,100,108,110,142,176,192,203),]
+
+
+
+# Damos el mismo orden de columnas a matriz y metadatos
+
+setcolorder(matriz_cdna,cross3$sample)
+
+# Compruebo que sean iguales
+
+all.equal(colnames(matriz_cdna), cross3$sample)
+
+# Filtramos por CPM y eliminamos conteos bajos
+
+counts.CPM <- cpm(matriz_cdna)
+thresh <- counts.CPM > 0.5
+
+# Me quedo con los que pasan el umbral
+keep <- rowSums(thresh) >= 2
+counts.keep <- matriz_cdna[keep,]
+
+# Matriz de diseño
+design  <-  model.matrix(~0+cross3$Diagnosis)
+
+# Objeto de DESseq
+
+dds <- DESeqDataSetFromMatrix(counts.keep,
+colData = cross3,
+design = design)
+
+dim(dds)
+
+dds <- estimateSizeFactors(dds, type="poscounts")
+
+vsd <- varianceStabilizingTransformation(dds,blind=TRUE)
+
+mds1 <- cmdscale(dist(t(assay(vsd))))
+cross3.mds <- merge(x = cross2,y = mds1,by.x='sample',by.y='row.names')
+
+```
+
+
+
+```{r}
+ggplot(cross3.mds, aes(x = V1, y = V2, color = batch_shortname)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Batch") + stat_ellipse() + theme_bw() + scale_color_igv()
+
+ggplot(cross3.mds, aes(x = V1, y = V2, color = Gender)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Sex") + stat_ellipse() + theme_bw() + scale_color_igv()
+
+ggplot(cross3.mds, aes(x = V1, y = V2, color = Diagnosis)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Diagnosis") + stat_ellipse() + theme_bw() + scale_color_igv()
+
+ggplot(cross3.mds, aes(x = V1, y = V2, color = Center)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Center") + stat_ellipse() + theme_bw() + scale_color_igv()
+
+ggplot(cross3.mds, aes(x = V1, y = V2, color = Age)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Age") + theme_bw() + scale_color_gradient(low="white", high="red")
+
+ggplot(cross3.mds, aes(x = V1, y = V2, color = Reads)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Reads") + theme_bw() + scale_color_gradient(low="white", high="red")
+
+ggplot(cross3.mds, aes(x = V1, y = V2, color = Short_reads)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Short reads") + theme_bw() + scale_color_gradient(low="white", high="red")
+
+ggplot(cross3.mds, aes(x = V1, y = V2, color = Ultra_short_reads)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Ultra short reads") + theme_bw() + scale_color_gradient(low="white", high="red")
+
+ggplot(cross3.mds, aes(x = V1, y = V2, color = Bacteria)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Bacteria") + theme_bw() + scale_color_gradient(low="white", high="dark blue")
+
+ggplot(cross3.mds, aes(x = V1, y = V2, color = Virus)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Virus") + theme_bw() + scale_color_gradient(low="white", high="dark blue")
+```
+
+
+```{r}
+cross4<-cross2
+
+
+# Damos el mismo orden de columnas a matriz y metadatos
+
+setcolorder(matriz_genomic_tRNA,cross4$sample)
+
+# Compruebo que sean iguales
+
+all.equal(colnames(matriz_cdna), cross4$sample)
+
+
+# # SI obtengo error de estabilizacion, quito las columnas que no tienen valores
+# matriz_cdna<-matriz_cdna[, colSums(matriz_cdna != 0) > 0]
+# lol=colSums(matriz_cdna)>10
+# conjunto<-which(lol==TRUE)
+# 
+# cross3<-cross3[-c(29,38,45,48,50,51,70,89,94,100,108,110,142,176,192,203),]
+
+
+
+# Damos el mismo orden de columnas a matriz y metadatos
+
+setcolorder(matriz_genomic_tRNA,cross4$sample)
+
+# Compruebo que sean iguales
+
+all.equal(colnames(matriz_genomic_tRNA), cross4$sample)
+
+# Filtramos por CPM y eliminamos conteos bajos
+
+counts.CPM <- cpm(matriz_genomic_tRNA)
+thresh <- counts.CPM > 0.5
+
+# Me quedo con los que pasan el umbral
+keep <- rowSums(thresh) >= 2
+counts.keep <- matriz_cdna[keep,]
+
+# Matriz de diseño
+design  <-  model.matrix(~0+cross3$Diagnosis)
+
+# Objeto de DESseq
+
+dds <- DESeqDataSetFromMatrix(counts.keep,
+colData = cross3,
+design = design)
+
+dim(dds)
+
+dds <- estimateSizeFactors(dds, type="poscounts")
+
+
+vsd <- varianceStabilizingTransformation(dds,blind=TRUE)
+
+mds2 <- cmdscale(dist(t(assay(vsd))))
+cross4.mds <- merge(x = cross4,y = mds1,by.x='sample',by.y='row.names')
+
+```
 
