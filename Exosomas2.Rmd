@@ -753,7 +753,7 @@ dim(dds)
 
 ```
 
-# MDS GGplot 
+# MDS datos miRNA
 
 ```{r}
 # Multi dimensional scaling
@@ -859,39 +859,49 @@ write.table(matrixA, file = "matrix_yRNA.tsv", append = FALSE, quote = TRUE, sep
 
 # Cargamos, quitamos las X y las muestras de cerebro
 matriz_cdna<-read.delim(file="/home/david_caceres/Exosomas/Exosomas2/small/Expresion_cdna/matrix_cdna.tsv", row.names=1)
-matriz_cdna <- matriz_cdna %>% select(-contains("Brain"))
+matriz_cdna <- matriz_cdna %>% dplyr::select(-contains("Brain"))
 matriz_cdna <- data.frame(matriz_cdna[,-1], row.names = matriz_cdna[,1])
 matriz_cdna <- matriz_cdna %>% 
     rename_with(~ str_remove(., "X"), everything())
 
 matriz_genomic_tRNA<-read.delim(file="/home/david_caceres/Exosomas/Exosomas2/small/Expresion_genomic_tRNA//matrix_genomic_tRNA.tsv", row.names=1)
-matriz_genomic_tRNA <- matriz_genomic_tRNA %>% select(-contains("Brain"))
+matriz_genomic_tRNA <- matriz_genomic_tRNA %>% dplyr::select(-contains("Brain"))
 matriz_genomic_tRNA <- data.frame(matriz_genomic_tRNA[,-1], row.names = matriz_genomic_tRNA[,1])
 matriz_genomic_tRNA <- matriz_genomic_tRNA %>% 
     rename_with(~ str_remove(., "X"), everything())
 
 
 matriz_hairpin<-read.delim(file="/home/david_caceres/Exosomas/Exosomas2/small/Expresion_hairpin/matrix_hairpin.tsv",row.names=1)
-matriz_hairpin <- matriz_hairpin %>% select(-contains("Brain"))
+matriz_hairpin <- matriz_hairpin %>% dplyr::select(-contains("Brain"))
 matriz_hairpin <- data.frame(matriz_hairpin[,-1], row.names = matriz_hairpin[,1])
 matriz_hairpin <- matriz_hairpin %>% 
     rename_with(~ str_remove(., "X"), everything())
 
 
 matriz_ncRNA<-read.delim(file="/home/david_caceres/Exosomas/Exosomas2/small/Expresion_ncRNA/matrix_ncRNA.tsv", row.names=1)
+matriz_ncRNA <- matriz_ncRNA %>% dplyr::select(-contains("Brain"))
+matriz_ncRNA <- data.frame(matriz_ncRNA[,-1], row.names = matriz_ncRNA[,1])
 matriz_ncRNA <- matriz_ncRNA %>% 
     rename_with(~ str_remove(., "X"), everything())
-matriz_ncRNA <- matriz_ncRNA %>% select(-contains("Brain"))
+
+matriz_RNAcentral<-read.delim(file="/home/david_caceres/Exosomas/Exosomas2/small/Expresion_RNAcentral/matriz_RNAcentral.tsv", row.names=1)
+matriz_RNAcentral <- matriz_RNAcentral %>% dplyr::select(-contains("Brain"))
+matriz_RNAcentral <- data.frame(matriz_RNAcentral[,-1], row.names = matriz_RNAcentral[,1])
+matriz_RNAcentral <- matriz_RNAcentral %>% 
+    rename_with(~ str_remove(., "X"), everything())
 
 matriz_vRNA<-read.delim(file="/home/david_caceres/Exosomas/Exosomas2/small/Expresion_vRNA/matrix_vRNA.tsv", row.names=1)
+matriz_vRNA <- matriz_vRNA %>% dplyr::select(-contains("Brain"))
+matriz_vRNA <- data.frame(matriz_vRNA[,-1], row.names = matriz_vRNA[,1])
 matriz_vRNA <- matriz_vRNA %>% 
     rename_with(~ str_remove(., "X"), everything())
-matriz_vRNA <- matriz_vRNA %>% select(-contains("Brain"))
+
 
 matriz_yRNA<-read.delim(file="/home/david_caceres/Exosomas/Exosomas2/small/Expresion_yRNA/matrix_yRNA.tsv", row.names=1)
+matriz_yRNA <- matriz_yRNA %>% dplyr::select(-contains("Brain"))
+matriz_yRNA <- data.frame(matriz_yRNA[,-1], row.names = matriz_yRNA[,1])
 matriz_yRNA <- matriz_yRNA %>% 
     rename_with(~ str_remove(., "X"), everything())
-matriz_yRNA <- matriz_yRNA %>% select(-contains("Brain"))
 ```
 
 
@@ -913,12 +923,15 @@ setcolorder(matriz_cdna,cross3$sample)
 all.equal(colnames(matriz_cdna), cross3$sample)
 
 
-# # SI obtengo error de estabilizacion, quito las columnas que no tienen valores
-# matriz_cdna<-matriz_cdna[, colSums(matriz_cdna != 0) > 0]
-# lol=colSums(matriz_cdna)>10
-# conjunto<-which(lol==TRUE)
-# 
-# cross3<-cross3[-c(29,38,45,48,50,51,70,89,94,100,108,110,142,176,192,203),]
+# SI obtengo error de estabilizacion, quito las columnas que no tienen valores
+matriz_cdna<-matriz_cdna[, colSums(matriz_cdna != 0) > 0]
+matriz_cdna<-matriz_cdna[rowSums(matriz_cdna[, -1] > 0) != 0, ]
+lol=colSums(matriz_cdna)==0
+lol2=rowSums(matriz_cdna)==0
+which(lol==TRUE)
+which(lol2==TRUE)
+
+cross3<-cross3[-c(29,38,45,48,50,51,70,89,94,100,108,110,142,176,192,203),]
 
 
 
@@ -944,14 +957,13 @@ design  <-  model.matrix(~0+cross3$Diagnosis)
 
 # Objeto de DESseq
 
-dds <- DESeqDataSetFromMatrix(counts.keep,
+dds <- DESeqDataSetFromMatrix(round(counts.keep/2),
 colData = cross3,
 design = design)
 
 dim(dds)
 
 dds <- estimateSizeFactors(dds, type="poscounts")
-
 vsd <- varianceStabilizingTransformation(dds,blind=TRUE)
 
 mds1 <- cmdscale(dist(t(assay(vsd))))
@@ -963,19 +975,19 @@ cross3.mds <- merge(x = cross2,y = mds1,by.x='sample',by.y='row.names')
 
 ```{r}
 ggplot(cross3.mds, aes(x = V1, y = V2, color = batch_shortname)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Batch") + stat_ellipse() + theme_bw() + scale_color_igv()
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Batch cdna") + stat_ellipse() + theme_bw() + scale_color_igv()
 
 ggplot(cross3.mds, aes(x = V1, y = V2, color = Gender)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Sex") + stat_ellipse() + theme_bw() + scale_color_igv()
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Sex cdna") + stat_ellipse() + theme_bw() + scale_color_igv()
 
 ggplot(cross3.mds, aes(x = V1, y = V2, color = Diagnosis)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Diagnosis") + stat_ellipse() + theme_bw() + scale_color_igv()
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Diagnosis cdna") + stat_ellipse() + theme_bw() + scale_color_igv()
 
 ggplot(cross3.mds, aes(x = V1, y = V2, color = Center)) +
     geom_point(size = 3) + coord_fixed() + ggtitle("MDS Center") + stat_ellipse() + theme_bw() + scale_color_igv()
 
 ggplot(cross3.mds, aes(x = V1, y = V2, color = Age)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Age") + theme_bw() + scale_color_gradient(low="white", high="red")
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Age cdna") + theme_bw() + scale_color_gradient(low="white", high="red")
 
 ggplot(cross3.mds, aes(x = V1, y = V2, color = Reads)) +
     geom_point(size = 3) + coord_fixed() + ggtitle("MDS Reads") + theme_bw() + scale_color_gradient(low="white", high="red")
@@ -994,6 +1006,8 @@ ggplot(cross3.mds, aes(x = V1, y = V2, color = Virus)) +
 ```
 
 
+# tRNA
+
 ```{r}
 cross4<-cross2
 
@@ -1004,7 +1018,7 @@ setcolorder(matriz_genomic_tRNA,cross4$sample)
 
 # Compruebo que sean iguales
 
-all.equal(colnames(matriz_cdna), cross4$sample)
+all.equal(colnames(matriz_genomic_tRNA), cross4$sample)
 
 
 # # SI obtengo error de estabilizacion, quito las columnas que no tienen valores
@@ -1031,15 +1045,184 @@ thresh <- counts.CPM > 0.5
 
 # Me quedo con los que pasan el umbral
 keep <- rowSums(thresh) >= 2
-counts.keep <- matriz_cdna[keep,]
+counts.keep <- matriz_genomic_tRNA[keep,]
 
 # Matriz de diseño
-design  <-  model.matrix(~0+cross3$Diagnosis)
+design  <-  model.matrix(~0+cross4$Diagnosis)
 
 # Objeto de DESseq
 
 dds <- DESeqDataSetFromMatrix(counts.keep,
-colData = cross3,
+colData = cross4,
+design = design)
+
+dim(dds)
+
+dds <- estimateSizeFactors(dds, type="poscounts")
+
+vsd <- varianceStabilizingTransformation(dds,blind=TRUE)
+
+mds2 <- cmdscale(dist(t(assay(vsd))))
+cross4.mds <- merge(x = cross4,y = mds2,by.x='sample',by.y='row.names')
+
+```
+
+
+```{r}
+ggplot(cross4.mds, aes(x = V1, y = V2, color = batch_shortname)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Batch") + stat_ellipse() + theme_bw() + scale_color_igv()
+
+ggplot(cross4.mds, aes(x = V1, y = V2, color = Gender)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Sex") + stat_ellipse() + theme_bw() + scale_color_igv()
+
+ggplot(cross4.mds, aes(x = V1, y = V2, color = Diagnosis)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Diagnosis") + stat_ellipse() + theme_bw() + scale_color_igv()
+
+ggplot(cross4.mds, aes(x = V1, y = V2, color = Center)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Center") + stat_ellipse() + theme_bw() + scale_color_igv()
+
+ggplot(cross4.mds, aes(x = V1, y = V2, color = Age)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Age") + theme_bw() + scale_color_gradient(low="white", high="red")
+
+ggplot(cross4.mds, aes(x = V1, y = V2, color = Reads)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Reads") + theme_bw() + scale_color_gradient(low="white", high="red")
+
+ggplot(cross4.mds, aes(x = V1, y = V2, color = Short_reads)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Short reads") + theme_bw() + scale_color_gradient(low="white", high="red")
+
+ggplot(cross4.mds, aes(x = V1, y = V2, color = Ultra_short_reads)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Ultra short reads") + theme_bw() + scale_color_gradient(low="white", high="red")
+
+ggplot(cross4.mds, aes(x = V1, y = V2, color = Bacteria)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Bacteria") + theme_bw() + scale_color_gradient(low="white", high="dark blue")
+
+ggplot(cross4.mds, aes(x = V1, y = V2, color = Virus)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Virus") + theme_bw() + scale_color_gradient(low="white", high="dark blue")
+```
+
+
+# Hairpin
+
+```{r}
+cross5<-cross2
+
+
+# Damos el mismo orden de columnas a matriz y metadatos
+
+setcolorder(matriz_hairpin,cross5$sample)
+
+# Compruebo que sean iguales
+
+all.equal(colnames(matriz_hairpin), cross5$sample)
+
+
+# # SI obtengo error de estabilizacion, quito las columnas que no tienen valores
+# matriz_cdna<-matriz_cdna[, colSums(matriz_cdna != 0) > 0]
+# lol=colSums(matriz_cdna)>10
+# conjunto<-which(lol==TRUE)
+# 
+# cross3<-cross3[-c(29,38,45,48,50,51,70,89,94,100,108,110,142,176,192,203),]
+
+# Filtramos por CPM y eliminamos conteos bajos
+
+counts.CPM <- cpm(matriz_hairpin)
+thresh <- counts.CPM > 0.5
+
+# Me quedo con los que pasan el umbral
+keep <- rowSums(thresh) >= 2
+counts.keep <- matriz_hairpin[keep,]
+
+# Matriz de diseño
+design  <-  model.matrix(~0+cross5$Diagnosis)
+
+# Objeto de DESseq
+
+dds <- DESeqDataSetFromMatrix(counts.keep,
+colData = cross5,
+design = design)
+
+dim(dds)
+
+
+vsd <- varianceStabilizingTransformation(dds,blind=TRUE)
+
+mds3 <- cmdscale(dist(t(assay(vsd))))
+cross5.mds <- merge(x = cross5,y = mds3,by.x='sample',by.y='row.names')
+
+```
+
+```{r}
+ggplot(cross5.mds, aes(x = V1, y = V2, color = batch_shortname)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Batch") + stat_ellipse() + theme_bw() + scale_color_igv()
+
+ggplot(cross5.mds, aes(x = V1, y = V2, color = Gender)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Sex") + stat_ellipse() + theme_bw() + scale_color_igv()
+
+ggplot(cross5.mds, aes(x = V1, y = V2, color = Diagnosis)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Diagnosis") + stat_ellipse() + theme_bw() + scale_color_igv()
+
+ggplot(cross5.mds, aes(x = V1, y = V2, color = Center)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Center") + stat_ellipse() + theme_bw() + scale_color_igv()
+
+ggplot(cross5.mds, aes(x = V1, y = V2, color = Age)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Age") + theme_bw() + scale_color_gradient(low="white", high="red")
+
+ggplot(cross5.mds, aes(x = V1, y = V2, color = Reads)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Reads") + theme_bw() + scale_color_gradient(low="white", high="red")
+
+ggplot(cross5.mds, aes(x = V1, y = V2, color = Short_reads)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Short reads") + theme_bw() + scale_color_gradient(low="white", high="red")
+
+ggplot(cross5.mds, aes(x = V1, y = V2, color = Ultra_short_reads)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Ultra short reads") + theme_bw() + scale_color_gradient(low="white", high="red")
+
+ggplot(cross5.mds, aes(x = V1, y = V2, color = Bacteria)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Bacteria") + theme_bw() + scale_color_gradient(low="white", high="dark blue")
+
+ggplot(cross5.mds, aes(x = V1, y = V2, color = Virus)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Virus") + theme_bw() + scale_color_gradient(low="white", high="dark blue")
+```
+
+
+# ncRNA
+
+
+```{r}
+cross6<-cross2
+
+
+# Damos el mismo orden de columnas a matriz y metadatos
+
+setcolorder(matriz_ncRNA,cross6$sample)
+
+# Compruebo que sean iguales
+
+all.equal(colnames(matriz_ncRNA), cross6$sample)
+
+
+# # SI obtengo error de estabilizacion, quito las columnas que no tienen valores
+# matriz_cdna<-matriz_cdna[, colSums(matriz_cdna != 0) > 0]
+# lol=colSums(matriz_cdna)>10
+# conjunto<-which(lol==TRUE)
+# 
+# cross3<-cross3[-c(29,38,45,48,50,51,70,89,94,100,108,110,142,176,192,203),]
+
+# Filtramos por CPM y eliminamos conteos bajos
+
+counts.CPM <- cpm(matriz_ncRNA)
+thresh <- counts.CPM > 0.5
+
+# Me quedo con los que pasan el umbral
+keep <- rowSums(thresh) >= 2
+counts.keep <- matriz_ncRNA[keep,]
+
+# Matriz de diseño
+design  <-  model.matrix(~0+cross6$Diagnosis)
+
+# Objeto de DESseq
+
+dds <- DESeqDataSetFromMatrix(counts.keep,
+colData = cross6,
 design = design)
 
 dim(dds)
@@ -1049,8 +1232,151 @@ dds <- estimateSizeFactors(dds, type="poscounts")
 
 vsd <- varianceStabilizingTransformation(dds,blind=TRUE)
 
-mds2 <- cmdscale(dist(t(assay(vsd))))
-cross4.mds <- merge(x = cross4,y = mds1,by.x='sample',by.y='row.names')
+mds3 <- cmdscale(dist(t(assay(vsd))))
+
+cross6.mds <- merge(x = cross6,y = mds3,by.x='sample',by.y='row.names')
+
+```
+
+
+# RNA central
+
+
+```{r}
+cross7<-cross2
+
+
+# Damos el mismo orden de columnas a matriz y metadatos
+
+setcolorder(matriz_RNAcentral,cross7$sample)
+
+# Compruebo que sean iguales
+
+all.equal(colnames(matriz_RNAcentral), cross7$sample)
+
+
+# # SI obtengo error de estabilizacion, quito las columnas que no tienen valores
+# matriz_cdna<-matriz_cdna[, colSums(matriz_cdna != 0) > 0]
+# lol=colSums(matriz_cdna)>10
+# conjunto<-which(lol==TRUE)
+# 
+# cross3<-cross3[-c(29,38,45,48,50,51,70,89,94,100,108,110,142,176,192,203),]
+
+# Filtramos por CPM y eliminamos conteos bajos
+
+counts.CPM <- cpm(matriz_RNAcentral)
+thresh <- counts.CPM > 0.5
+
+# Me quedo con los que pasan el umbral
+keep <- rowSums(thresh) >= 2
+counts.keep <- matriz_RNAcentral[keep,]
+
+# Matriz de diseño
+design  <-  model.matrix(~0+cross7$Diagnosis)
+
+# Objeto de DESseq
+
+dds <- DESeqDataSetFromMatrix(counts.keep,
+colData = cross7,
+design = design)
+
+dim(dds)
+
+
+
+
+vsd <- varianceStabilizingTransformation(dds,blind=TRUE)
+
+mds3 <- cmdscale(dist(t(assay(vsd))))
+
+cross7.mds <- merge(x = cross7,y = mds3,by.x='sample',by.y='row.names')
+
+```
+
+
+```{r}
+ggplot(cross7.mds, aes(x = V1, y = V2, color = batch_shortname)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Batch") + stat_ellipse() + theme_bw() + scale_color_igv()
+
+ggplot(cross7.mds, aes(x = V1, y = V2, color = Gender)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Sex") + stat_ellipse() + theme_bw() + scale_color_igv()
+
+ggplot(cross7.mds, aes(x = V1, y = V2, color = Diagnosis)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Diagnosis") + stat_ellipse() + theme_bw() + scale_color_igv()
+
+ggplot(cross7.mds, aes(x = V1, y = V2, color = Center)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Center") + stat_ellipse() + theme_bw() + scale_color_igv()
+
+ggplot(cross7.mds, aes(x = V1, y = V2, color = Age)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Age") + theme_bw() + scale_color_gradient(low="white", high="red")
+
+ggplot(cross7.mds, aes(x = V1, y = V2, color = Reads)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Reads") + theme_bw() + scale_color_gradient(low="white", high="red")
+
+ggplot(cross7.mds, aes(x = V1, y = V2, color = Short_reads)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Short reads") + theme_bw() + scale_color_gradient(low="white", high="red")
+
+ggplot(cross7.mds, aes(x = V1, y = V2, color = Ultra_short_reads)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Ultra short reads") + theme_bw() + scale_color_gradient(low="white", high="red")
+
+ggplot(cross7.mds, aes(x = V1, y = V2, color = Bacteria)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Bacteria") + theme_bw() + scale_color_gradient(low="white", high="dark blue")
+
+ggplot(cross7.mds, aes(x = V1, y = V2, color = Virus)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Virus") + theme_bw() + scale_color_gradient(low="white", high="dark blue")
+```
+
+# vRNA
+
+
+```{r}
+cross8<-cross2
+
+
+# Damos el mismo orden de columnas a matriz y metadatos
+
+setcolorder(matriz_vRNA,cross8$sample)
+
+# Compruebo que sean iguales
+
+all.equal(colnames(matriz_vRNA), cross8$sample)
+
+
+# # SI obtengo error de estabilizacion, quito las columnas que no tienen valores
+# matriz_cdna<-matriz_cdna[, colSums(matriz_cdna != 0) > 0]
+# lol=colSums(matriz_cdna)>10
+# conjunto<-which(lol==TRUE)
+# 
+# cross3<-cross3[-c(29,38,45,48,50,51,70,89,94,100,108,110,142,176,192,203),]
+
+# Filtramos por CPM y eliminamos conteos bajos
+
+counts.CPM <- cpm(matriz_vRNA)
+thresh <- counts.CPM > 0.5
+
+# Me quedo con los que pasan el umbral
+keep <- rowSums(thresh) >= 2
+counts.keep <- matriz_vRNA[keep,]
+
+# Matriz de diseño
+design  <-  model.matrix(~0+cross8$Diagnosis)
+
+# Objeto de DESseq
+
+dds <- DESeqDataSetFromMatrix(counts.keep,
+colData = cross8,
+design = design)
+
+dim(dds)
+
+
+
+
+vsd <- varianceStabilizingTransformation(dds,blind=TRUE)
+
+mds3 <- cmdscale(dist(t(assay(vsd))))
+
+cross8.mds <- merge(x = cross8,y = mds3,by.x='sample',by.y='row.names')
 
 ```
 
