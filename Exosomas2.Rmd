@@ -30,6 +30,9 @@ library(stringr)
 library(base)
 library(Rfast)
 library(swamp)
+library(ggpubr)
+library(tidyverse)
+library(rstatix)
 ```
 
 
@@ -766,7 +769,7 @@ vsd <- varianceStabilizingTransformation(dds,blind=TRUE)
 mds <- cmdscale(dist(t(assay(vsd))))
 cross2.mds <- merge(x = cross2,y = mds,by.x='sample',by.y='row.names')
 
-colnames(cross2.mds)<-c("sample","OMICID","Age","Sex","Race","Diagnosis","Center","PatientID","batch","Batch" ,"smp","sample_shortname","Reads","Short_reads","Ultra_short_reads","Bacteria","Virus","V1","V2")
+colnames(cross2.mds)<-c("sample","OMICID","Age","Sex","Race","Diagnosis","Center","PatientID","batch","Batch" ,"smp","sample_shortname","Reads","Short_reads","Ultra_short_reads","Bacteria","Virus","reads_total","V1","V2")
 
 
 ggplot(cross2.mds, aes(x = V1, y = V2, color = Batch)) +
@@ -798,6 +801,9 @@ ggplot(cross2.mds, aes(x = V1, y = V2, color = Bacteria)) +
 
 ggplot(cross2.mds, aes(x = V1, y = V2, color = Virus)) +
     geom_point(size = 3) + coord_fixed() + ggtitle("MDS Virus") + theme_bw() + scale_color_gradient(low="white", high="dark blue")
+
+ggplot(cross2.mds, aes(x = V1, y = V2, color = reads_total)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Reads total") + theme_bw() + scale_color_gradient(low="white", high="dark blue")
 
 ```
 
@@ -1389,6 +1395,8 @@ cross8.mds <- merge(x = cross8,y = mds3,by.x='sample',by.y='row.names')
 
 
 
+
+
 # Boxplots 
 
 
@@ -1398,72 +1406,34 @@ reads_total<-read.table(file="/home/david_caceres/Exosomas/Exosomas2/Tablas/Tota
 
 cross2<-merge(cross2, reads_total, by="sample")
 
- colnames(cross2)[18] <- 'reads_total'
+colnames(cross2)[18] <- 'reads_total'
 
-library(ggplot2)
-library(ggpubr)
-library(ggsci)
+setwd("/home/david_caceres/Exosomas/Exosomas2/Tablas/p-valores.Batch")
 
-comparisons <- list(c("A","B"),c("A","C"),c("A","D"),c("B","C"))
-g<-ggplot(cross2, aes(x=batch_shortname, y=Reads, color=batch_shortname)) +
-geom_boxplot() + stat_compare_means(comparisons = comparisons,method = "wilcox.test")
-
-g +  scale_color_igv()
-
-
-library(tidyverse)
-library(rstatix)   
-library(ggpubr)
-library(ggplot2)
-
-
-stat.test <- cross2%>% 
+# Reads
+ 
+ 
+stat.test_reads <- cross2%>% 
   wilcox_test(Reads ~ batch_shortname) %>%
   adjust_pvalue() %>%
   add_significance("p.adj")
 stat.test
 
-stat.test <- stat.test %>% add_y_position()
+stat.test_reads <- stat.test_reads %>% add_y_position()
 
 ggboxplot(cross2, x = "batch_shortname", y = "Reads",
           palette = "igv",fill="batch_shortname",order=c("A","B","C","D","E","F","G","H"),
-          legend="right")+stat_pvalue_manual(stat.test, label = "p.adj",tip.length = 0.01)+
+          legend="right")+stat_pvalue_manual(stat.test_reads, label = "p.adj",tip.length = 0.01)+
   labs(y= "Reads",x= "Batch",fill="batch_shortname")
 
 
-ggboxplot(cross2, x = "batch_shortname", y = "Age",
-          palette = "igv",fill="batch_shortname",order=c("A","B","C","D","E","F","G","H"),
-          legend="right")+stat_pvalue_manual(stat.test, label = "p.adj",tip.length = 0.01)+
-  labs(y= "Age",x= "Batch",fill="batch_shortname")
-
-
-
-
-# Plot Guillermo
-library(ggplot2)
-library(ggpubr)
-library(ggsci)
-
-comparisons <- list(c("A","B"),c("A","C"),c("A","D"),c("B","C"))
-g<-ggplot(cross2, aes(x=batch_shortname, y=Reads, color=batch_shortname)) +
-geom_boxplot() + stat_compare_means(comparisons = comparisons,method = "wilcox.test")
-
-g +  scale_color_igv()
-
-
-# Plot David
-
-library(tidyverse)
-library(rstatix)   
-library(ggpubr)
-library(ggplot2)
-
+# Puedo hacerlo respecto a un solo batch
 
 stat.test <- cross2%>% 
   wilcox_test(Reads ~ batch_shortname,ref.group = "D") %>%
   adjust_pvalue() %>%
   add_significance("p.adj")
-stat.test
+stat.test_reads
 
 stat.test <- stat.test %>% add_y_position()
 
@@ -1472,89 +1442,124 @@ ggboxplot(cross2, x = "batch_shortname", y = "Reads",
           legend="right")+stat_pvalue_manual(stat.test, label = "p.adj",tip.length = 0.01) + 
   labs(y= "Reads",x= "Batch",fill="batch_shortname")
 
+stat.test_reads <- apply(stat.test_reads,2,as.character)
+write.table(stat.test_reads, file = "reads_batch.tsv", append = FALSE, quote = TRUE, sep = "\t ")
 
-stat.test <- cross2%>% 
+
+# Age
+
+
+stat.test_age <- cross2%>% 
   wilcox_test(Age ~ batch_shortname) %>%
   adjust_pvalue() %>%
   add_significance("p.adj")
-stat.test
+stat.test_age
 
-stat.test <- stat.test %>% add_y_position()
+stat.test_age <- stat.test_age %>% add_y_position()
 
 ggboxplot(cross2, x = "batch_shortname", y = "Age",
           palette = "igv",fill="batch_shortname",order=c("A","B","C","D","E","F","G","H"),
-          legend="right")+stat_pvalue_manual(stat.test, label = "p.adj",tip.length = 0.01)+
+          legend="right")+stat_pvalue_manual(stat.test_age, label = "p.adj",tip.length = 0.01)+
   labs(y= "Age",x= "Batch",fill="batch_shortname")
 
+stat.test_age <- apply(stat.test_reads,2,as.character)
+write.table(stat.test_age, file = "age_batch.tsv", append = FALSE, quote = TRUE, sep = "\t ")
 
-stat.test <- cross2%>% 
-  wilcox_test(Short_reads ~ batch_shortname, ref.group = "D") %>%
+
+# Short
+
+stat.test_short <- cross2%>% 
+  wilcox_test(Short_reads ~ batch_shortname) %>%
   adjust_pvalue() %>%
   add_significance("p.adj")
-stat.test
+stat.test_short
 
-stat.test <- stat.test %>% add_y_position()
+stat.test_short <- stat.test_short %>% add_y_position()
 
 ggboxplot(cross2, x = "batch_shortname", y = "Short_reads",
           palette = "igv",fill="batch_shortname",order=c("A","B","C","D","E","F","G","H"),
-          legend="right")+stat_pvalue_manual(stat.test, label = "p.adj",tip.length = 0.01)+
+          legend="right")+stat_pvalue_manual(stat.test_short, label = "p.adj",tip.length = 0.01)+
   labs(y= "Short reads",x= "Batch",fill="batch_shortname")
 
 
-stat.test <- cross2%>% 
-  wilcox_test(Ultra_short_reads ~ batch_shortname, ref.group = "D") %>%
+stat.test_short <- apply(stat.test_short,2,as.character)
+write.table(stat.test_short, file = "short_batch.tsv", append = FALSE, quote = TRUE, sep = "\t ")
+
+
+# Ultra short
+
+
+stat.test_ushort <- cross2%>% 
+  wilcox_test(Ultra_short_reads ~ batch_shortname) %>%
   adjust_pvalue() %>%
   add_significance("p.adj")
-stat.test
+stat.test_ushort
 
-stat.test <- stat.test %>% add_y_position()
+stat.test_ushort <- stat.test_ushort %>% add_y_position()
 
 ggboxplot(cross2, x = "batch_shortname", y = "Ultra_short_reads",
           palette = "igv",fill="batch_shortname",order=c("A","B","C","D","E","F","G","H"),
-          legend="right")+stat_pvalue_manual(stat.test, label = "p.adj",tip.length = 0.01)+
+          legend="right")+stat_pvalue_manual(stat.test_ushort, label = "p.adj",tip.length = 0.01)+
   labs(y= "Ultra short reads",x= "Batch",fill="batch_shortname")
 
+stat.test_ushort <- apply(stat.test_ushort,2,as.character)
+write.table(stat.test_ushort, file = "ushort_batch.tsv", append = FALSE, quote = TRUE, sep = "\t ")
 
-stat.test <- cross2%>% 
+# Bacteria
+
+stat.test_bacteria <- cross2%>% 
   wilcox_test(Bacteria ~ batch_shortname) %>%
   adjust_pvalue() %>%
   add_significance("p.adj")
-stat.test
+stat.test_bacteria
 
-stat.test <- stat.test %>% add_y_position()
+stat.test_bacteria <- stat.test_bacteria %>% add_y_position()
 
 ggboxplot(cross2, x = "batch_shortname", y = "Bacteria",
           palette = "igv",fill="batch_shortname",order=c("A","B","C","D","E","F","G","H"),
-          legend="right")+stat_pvalue_manual(stat.test, label = "p.adj",tip.length = 0.01)+
+          legend="right")+stat_pvalue_manual(stat.test_bacteria, label = "p.adj",tip.length = 0.01)+
   labs(y= "Bacteria",x= "Batch",fill="batch_shortname")
 
+stat.test_bacteria <- apply(stat.test_bacteria,2,as.character)
+write.table(stat.test_bacteria, file = "bacteria_batch.tsv", append = FALSE, quote = TRUE, sep = "\t ")
 
 
-stat.test <- cross2%>% 
+# Virus
+
+stat.test_virus <- cross2%>% 
   wilcox_test(Virus ~ batch_shortname) %>%
   adjust_pvalue() %>%
   add_significance("p.adj")
-stat.test
+stat.test_virus
 
-stat.test <- stat.test %>% add_y_position()
+stat.test_virus <- stat.test_virus %>% add_y_position()
 
 ggboxplot(cross2, x = "batch_shortname", y = "Virus",
           palette = "igv",fill="batch_shortname",order=c("A","B","C","D","E","F","G","H"),
-          legend="right")+stat_pvalue_manual(stat.test, label = "p.adj",tip.length = 0.01)+
+          legend="right")+stat_pvalue_manual(stat.test_virus, label = "p.adj",tip.length = 0.01)+
   labs(y= "Virus",x= "Batch",fill="batch_shortname")
 
+stat.test_virus <- apply(stat.test_bacteria,2,as.character)
+write.table(stat.test_virus, file = "virus_batch.tsv", append = FALSE, quote = TRUE, sep = "\t ")
 
-stat.test <- cross2%>% 
+
+
+
+
+stat.test_reads_total <- cross2%>% 
   wilcox_test(reads_total ~ batch_shortname) %>%
   adjust_pvalue() %>%
   add_significance("p.adj")
-stat.test
+stat.test_reads_total
 
-stat.test <- stat.test %>% add_y_position()
+stat.test_reads_total <- stat.test_reads_total %>% add_y_position()
 
 ggboxplot(cross2, x = "batch_shortname", y = "reads_total",
           palette = "igv",fill="batch_shortname",order=c("A","B","C","D","E","F","G","H"),
-          legend="right")+stat_pvalue_manual(stat.test, label = "p.adj",tip.length = 0.01)+
+          legend="right")+stat_pvalue_manual(stat.test_reads_total, label = "p.adj",tip.length = 0.01)+
   labs(y= "Reads total",x= "Batch",fill="batch_shortname")
+
+stat.test_reads_total <- apply(stat.test_reads_total,2,as.character)
+write.table(stat.test_reads_total, file = "reads_total_batch.tsv", append = FALSE, quote = TRUE, sep = "\t ")
 ```
 
