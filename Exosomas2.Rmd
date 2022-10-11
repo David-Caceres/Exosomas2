@@ -1563,3 +1563,21 @@ stat.test_reads_total <- apply(stat.test_reads_total,2,as.character)
 write.table(stat.test_reads_total, file = "reads_total_batch.tsv", append = FALSE, quote = TRUE, sep = "\t ")
 ```
 
+
+# Añado información de patologías a la tabla Cross Sectional
+
+```{r}
+Cross_sec<-read.table(file="/home/david_caceres/Exosomas/Exosomas2/Tablas/CrossSectional.Dec2018.clean.tsv", header = TRUE, sep = "\t")
+
+columnas<-c("Kidney_Abnormal.Creatinine","Kidney_Abnormal.lipid.profile","Kidney_Abnormal.urine.analysis","Kidney_Biopsy.proven.nephritis","Kidney_Proteinuria","Kidney_Urine.proteins","Lab_Reduced.C3.levels","Lab_Reduced.C4.levels","Symptom_Abnormal.inflammatory.indexes","Symptom_Disease.activity","Sampling_Patient.ID")
+
+cross_sec2<-Cross_sec[,(colnames(Cross_sec) %in% columnas)]
+
+colnames(cross_sec2)[colnames(cross_sec2) == "Sampling_Patient.ID"] <- "PatientID"
+
+cross2<-merge(cross2, cross_sec2, by="PatientID")
+
+colnames(cross2)[colnames(cross2) == "Gender"] <- "Sex"
+
+```
+
