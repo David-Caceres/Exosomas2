@@ -33,6 +33,7 @@ library(swamp)
 library(ggpubr)
 library(tidyverse)
 library(rstatix)
+library(gridExtra)
 ```
 
 
@@ -48,7 +49,7 @@ setwd("~/Exosomas/Exosomas2")
 count<-read.table(file="RCadj_fullHsa.tsv", header = TRUE, sep = "\t")
 quality<-read.table(file="valueHsa.tsv", header = TRUE, sep = "\t")
 
-count<-read.table(file="/home/david_caceres/Exosomas/Exosomas2/RCadj_full_exo1.tsv", header = TRUE, sep = "\t")
+file
 quality<-read.table(file="value_exo1.tsv", header = TRUE, sep = "\t")
 
 metadata<-read.table(file="Metadatos.tsv", header = TRUE, sep = "\t")
@@ -58,6 +59,14 @@ metadata<-read.table(file="Metadatos.tsv", header = TRUE, sep = "\t")
 tipos_exo<-read.table(file="/home/david_caceres/Exosomas/Exosomas2/Tablas/readsPerc.tsv", header = TRUE, sep = "\t")
 
 brainq<-read.table(file="/home/david_caceres/Exosomas/Exosomas2/Tablas/brain_q.tsv", header = TRUE, sep = "\t")
+
+brainq2<-read.table(file="/home/david_caceres/Exosomas/Exosomas2/Tablas/brainq2.tsv", header = TRUE, sep = "\t")
+
+brainq_reads<-read.table(file="/home/david_caceres/Exosomas/Exosomas2/Tablas/brain_reads.tsv", header = TRUE, sep = "\t")
+
+brainq_short<-read.table(file="/home/david_caceres/Exosomas/Exosomas2/Tablas/brainq_short.tsv", header = TRUE, sep = "\t")
+
+brainq_ushort<-read.table(file="/home/david_caceres/Exosomas/Exosomas2/Tablas/brainq_ushort.tsv", header = TRUE, sep = "\t")
 
 short<-read.table(file="/home/david_caceres/Exosomas/Exosomas2/Tablas/shortReadsPerc.tsv", header = TRUE, sep = "\t")
 
@@ -70,6 +79,13 @@ unmapped<-read.table(file="/home/david_caceres/Exosomas/Exosomas2/Tablas/unmappe
 bacteria<-read.table(file="/home/david_caceres/Exosomas/Exosomas2/Tablas/bacteria.tsv", header = TRUE, sep = "\t")
 
 virus<-read.table(file="/home/david_caceres/Exosomas/Exosomas2/Tablas/virus.tsv", header = TRUE, sep = "\t")
+
+contaminacion<-read.table(file="/home/david_caceres/Exosomas/Exosomas2/Tablas/Contaminacion.tsv", header = TRUE, sep = "\t")
+
+brainq_contaminacion<-read.table(file="/home/david_caceres/Exosomas/Exosomas2/Tablas/brainq_contaminacion.tsv", header = TRUE, sep = "\t")
+
+reads_total<-read.table(file="/home/david_caceres/Exosomas/Exosomas2/Tablas/Total_reads.tsv", header = TRUE, sep = "\t")
+
 ```
 
 ### Formato
@@ -158,15 +174,15 @@ tipos_exo$X<-ifelse(tipos_exo$X=="readsPerc","Reads%")
 # Reads
 
 tipos_exo <- tipos_exo |> 
-    mutate(sample1 = reorder(sample, -ifelse(!X %in% "Reads%", 0, value), FUN = sum))
+    mutate(sample1 = reorder(sample, -ifelse(!X %in% "readsPerc", 0, value), FUN = sum))
 
-p1 <- ggplot(tipos_exo,aes(x = sample1, y = value, fill = factor(X, levels=c("Reads%")), width=1.05)) +
+p1 <- ggplot(tipos_exo,aes(x = sample1, y = value, fill = factor(X, levels=c("readsAdapterNotFoundPerc","shortReads","readsPerc")), width=1.05)) +
     geom_bar( stat = "identity", position = position_stack()) +
     scale_y_continuous(expand = c(0, 0), breaks = seq(0, 100, by = 10)) +
-    labs(x = NULL, y= "% reads" , title="Reads % QC", fill="Quality Control") +
+    labs(x = NULL, y= "% Reads" , title="Reads % QC", fill="Quality Control") +
     theme(axis.text.x = element_blank(),
           axis.ticks.x = element_blank(),
-          axis.ticks.length.x = unit(0, "pt")) + scale_fill_jco()+
+          axis.ticks.length.x = unit(0, "pt")) +
     theme(
         panel.background = element_rect(fill='transparent'),
         plot.background = element_rect(fill='transparent', color=NA),
@@ -174,28 +190,33 @@ p1 <- ggplot(tipos_exo,aes(x = sample1, y = value, fill = factor(X, levels=c("Re
         panel.grid.minor = element_blank(),
         legend.background = element_rect(fill='transparent'),
         legend.box.background = element_rect(fill='transparent')
-    )
+    ) + scale_fill_simpsons(labels=c("Adapter not found","Short Reads%","Reads%"))
 
 tipos_exo1 <- tipos_exo |>
     distinct(sample, sample1, batch_shortname)
+
 p_axis <- ggplot(tipos_exo1, aes(x = sample1, y = factor(1), fill = batch_shortname)) +
     geom_tile(width = 1) +
     theme_void() +
-    theme(axis.title.x = element_text(), legend.position=c(1.09,2.6)) +
+    theme(axis.title.x = element_text()) + theme(legend.position = "none")  +
     labs(x="Batch Annotation", fill="Batch") 
 
 p1_q<-p1 / p_axis + plot_layout(heights = c(8,1))  + scale_fill_igv()
 
 
 
+brainq$batch_shortname<-factor(brainq$batch, levels=c("180322-190603","180626-180628-190531","180726-190530","180913-190529","180919-190527","181003-190524","181004-190521","181023-190319"),labels=c("A","B","C","D","E","F","G","H"))
+
+
 # Cerebro
 
-p_reads_brain<-ggplot(brainq,aes(x = sample, y = value1, fill=variable1)) +
+
+p_reads_brain<-ggplot(brainq_reads,aes(x = batch, y = value1, fill = factor(variable1, levels=c("readsAdapterNotFoundPerc","shortReads","readsPerc")))) +
 geom_bar( stat = "identity") +
 scale_y_continuous(expand = c(0, 0), breaks = seq(0, 100, by = 10)) +
-labs(x = NULL, y= "% reads" , title="Brain Reads QC") +
+labs(x = NULL, y= "% Reads" , title="Brain Reads QC") +
 theme(axis.text.x = element_blank(),
-axis.ticks.length.x = unit(0, "pt")) + scale_fill_jco()+
+axis.ticks.length.x = unit(0, "pt")) + scale_fill_simpsons()+
 theme(
 panel.background = element_rect(fill='transparent'),
 plot.background = element_rect(fill='transparent', color=NA),
@@ -203,19 +224,18 @@ panel.grid.major = element_blank(),
 panel.grid.minor = element_blank(),
 legend.background = element_rect(fill='transparent'),
 legend.box.background = element_rect(fill='transparent')
-) +
-theme(legend.position="none")
-p_axis_reads_brain <- ggplot(brainq, aes(x =sample, y = factor(1), fill = batch)) +
+) + theme(legend.position = "none")
+p_axis_reads_brain <- ggplot(brainq_reads, aes(x =batch, y = factor(1), fill = batch_shortname)) +
 geom_tile(width = 1) +
 theme_void() +
 theme(axis.title.x = element_text())  +
+geom_text(aes(label = batch_shortname)) +
 labs(x="Batch Annotation", fill="Batch Annotation") +
 theme(legend.position="none")
 p3_qb<-p_reads_brain / p_axis_reads_brain + plot_layout(heights = c(8, 1))  + scale_fill_igv()
 
 
-
-plot_grid(p1_q,p3_qb, rel_widths = c(2, 1))
+pt1<-plot_grid(p1_q,p3_qb, rel_widths = c(1.7, 1.3))
 
 
 
@@ -225,21 +245,24 @@ plot_grid(p1_q,p3_qb, rel_widths = c(2, 1))
 
 ```{r}
 
-# Cortos
+#Cortos
 
 
 short$batch<-as.factor(short$batch)
 short$batch_shortname <- values[short$batch]
 short$X<-ifelse(short$X=="shortReadsPerc","Short reads %")
 
+short <- short |> 
+    mutate(sample1 = reorder(sample, -ifelse(!X %in% "shortReadsPerc", 0, value), FUN = sum))
 
-p_short<-ggplot(short,aes(x = reorder(sample, -value), y = value, fill = factor(X, levels=c("Short reads %")), width=1.05)) +
+
+p_short<-ggplot(short,aes(x =sample1, y = value, fill = factor(X, levels=c("readsAdapterNotFoundPerc","reads","shortReadsPerc")), width=1.05)) +
 geom_bar( stat = "identity") +
-scale_y_continuous(expand = c(0, 0), breaks = seq(0, 30, by = 5)) +
-labs(x = NULL, y= "% short reads" , title="Short Reads QC", fill="Quality Control") +
+scale_y_continuous(expand = c(0, 0), breaks = seq(0, 100, by = 10)) +
+labs(x = NULL, y= "Short reads%" , title="Short Reads% QC", fill="Quality Control") +
 theme(axis.text.x = element_blank(),
 axis.ticks.x = element_blank(),
-axis.ticks.length.x = unit(0, "pt")) + scale_fill_jco()+
+axis.ticks.length.x = unit(0, "pt")) + 
 theme(
 panel.background = element_rect(fill='transparent'),
 plot.background = element_rect(fill='transparent', color=NA),
@@ -247,24 +270,29 @@ panel.grid.major = element_blank(),
 panel.grid.minor = element_blank(),
 legend.background = element_rect(fill='transparent'),
 legend.box.background = element_rect(fill='transparent')
-)
-p_axis_short <- ggplot(short, aes(x = reorder(sample, -value), y = factor(1), fill = batch_shortname)) +
+) + scale_fill_simpsons(labels=c("Adapter not found","Reads%","Short Reads%"))
+
+
+short1 <- short |>
+    distinct(sample, sample1, batch_shortname)
+
+p_axis_short <- ggplot(short1, aes(x =sample1, y = factor(1), fill = batch_shortname)) +
 geom_tile(width = 1) +
 theme_void() +
-theme(axis.title.x = element_text(), legend.position=c(1.09,2.6)) +
+theme(axis.title.x = element_text()) + theme(legend.position = "none") +
 labs(x="Batch Annotation", fill="Batch")
 p3q<-p_short / p_axis_short + plot_layout(heights = c(8, 1))  + scale_fill_igv()
 
 
 # Cerebro
 
-p_short_brain<-ggplot(brainq,aes(x = sample, y = value2, fill = variable2)) +
+p_short_brain<-ggplot(brainq_short,aes(x = batch, y = value1,fill = factor(variable1, levels=c("readsAdapterNotFoundPerc","reads","shortReadsPerc")))) +
 geom_bar( stat = "identity") +
-scale_y_continuous(expand = c(0, 0), breaks = seq(0, 100, by = 1)) +
-labs(x = NULL, y= "% reads" , title="Brain short reads QC", fill="QC") +
+scale_y_continuous(expand = c(0, 0), breaks = seq(0, 100, by = 10)) +
+labs(x = NULL, y= "% Short reads" , title="Brain short reads% QC", fill="QC") +
 theme(axis.text.x = element_blank(),
 axis.ticks.x = element_blank(),
-axis.ticks.length.x = unit(0, "pt")) + scale_fill_jco()+
+axis.ticks.length.x = unit(0, "pt")) + scale_fill_simpsons()+
 theme(
 panel.background = element_rect(fill='transparent'),
 plot.background = element_rect(fill='transparent', color=NA),
@@ -274,16 +302,19 @@ legend.background = element_rect(fill='transparent'),
 legend.box.background = element_rect(fill='transparent')
 ) +
 theme(legend.position="none")
-p_axis_short_brain <- ggplot(brainq, aes(x =sample, y = factor(1), fill = batch)) +
+
+
+p_axis_short_brain <- ggplot(brainq_short, aes(x =batch, y = factor(1), fill = batch_shortname)) +
 geom_tile(width = 1) +
 theme_void() +
 theme(axis.title.x = element_text()) +
+geom_text(aes(label = batch_shortname)) +
 labs(x="Batch Annotation", fill="Batch Annotation") +
-theme(legend.position="none")
+theme(legend.position="none") 
 p4_qb<-p_short_brain / p_axis_short_brain + plot_layout(heights = c(8, 1))  + scale_fill_igv()
 
 
-plot_grid(p3q,p4_qb, rel_widths = c(2, 1))
+pt2<-plot_grid(p3q,p4_qb, rel_widths = c(1.7, 1.3))
 ```
 
 
@@ -296,13 +327,17 @@ ushort$X<-ifelse(ushort$X=="ultraShortReadsPerc","Ultra short %")
 
 # Ultra cortos
 
-p_ushort<-ggplot(ushort,aes(x = reorder(sample, -value), y = value, fill= factor(X, levels=c("Ultra short %")), width=1.05)) +
+ushort <- ushort |> 
+    mutate(sample1 = reorder(sample, -ifelse(!X %in% "ultraShortReadsPerc", 0, value), FUN = sum))
+
+
+p_ushort<-ggplot(ushort,aes(x =sample1, y = value, fill = factor(X, levels=c("readsAdapterNotFoundPerc","reads","ultraShortReadsPerc")), width=1.05)) +
 geom_bar( stat = "identity") +
-scale_y_continuous(expand = c(0, 0), breaks = seq(0, 80, by = 10)) +
-labs(x = NULL, y= "% ultra short reads" , title="Ultra Short Reads QC", fill="Quality Control") +
+scale_y_continuous(expand = c(0, 0), breaks = seq(0, 100, by = 10)) +
+labs(x = NULL, y= "Ultra Short reads%" , title="Ultra Short Reads% QC", fill="Quality Control") +
 theme(axis.text.x = element_blank(),
 axis.ticks.x = element_blank(),
-axis.ticks.length.x = unit(0, "pt")) + scale_fill_jco()+
+axis.ticks.length.x = unit(0, "pt")) + 
 theme(
 panel.background = element_rect(fill='transparent'),
 plot.background = element_rect(fill='transparent', color=NA),
@@ -310,11 +345,16 @@ panel.grid.major = element_blank(),
 panel.grid.minor = element_blank(),
 legend.background = element_rect(fill='transparent'),
 legend.box.background = element_rect(fill='transparent')
-)
-p_axis_ushort <- ggplot(ushort, aes(x = reorder(sample, -value), y = factor(1), fill = batch_shortname)) +
+) + scale_fill_simpsons(labels=c("Adapter not found","Reads%","Short Reads%"))
+
+
+ushort1 <- ushort |>
+    distinct(sample, sample1, batch_shortname)
+
+p_axis_short <- ggplot(short1, aes(x =sample1, y = factor(1), fill = batch_shortname)) +
 geom_tile(width = 1) +
 theme_void() +
-theme(axis.title.x = element_text(), legend.position=c(1.09,2.6)) +
+theme(axis.title.x = element_text()) + theme(legend.position = "none") +
 labs(x="Batch Annotation", fill="Batch")
 p5_q<-p_ushort / p_axis_ushort + plot_layout(heights = c(8, 1))  + scale_fill_igv()
 
@@ -322,32 +362,36 @@ p5_q<-p_ushort / p_axis_ushort + plot_layout(heights = c(8, 1))  + scale_fill_ig
 
 # Cerebro
 
-p_ushort_brain<-ggplot(brainq,aes(x = sample, y = value3, fill = "none")) +
+p_ushort_brain<-ggplot(brainq_ushort,aes(x = batch, y = value1,fill = factor(variable1, levels=c("readsAdapterNotFoundPerc","reads","ultraShortReadsPerc")))) +
 geom_bar( stat = "identity") +
-scale_y_continuous(expand = c(0, 0), breaks = seq(0, 100, by = 5)) +
-labs(x = NULL, y= "% reads" , title="Brain Ultra Short Reads QC") +
+scale_y_continuous(expand = c(0, 0), breaks = seq(0, 100, by = 10)) +
+labs(x = NULL, y= "% Ultra Short reads" , title="Brain Ultra short reads% QC", fill="QC") +
 theme(axis.text.x = element_blank(),
 axis.ticks.x = element_blank(),
-axis.ticks.length.x = unit(0, "pt")) + scale_fill_jco()+
+axis.ticks.length.x = unit(0, "pt")) + scale_fill_simpsons()+
 theme(
 panel.background = element_rect(fill='transparent'),
+plot.background = element_rect(fill='transparent', color=NA),
 panel.grid.major = element_blank(),
 panel.grid.minor = element_blank(),
 legend.background = element_rect(fill='transparent'),
 legend.box.background = element_rect(fill='transparent')
 ) +
 theme(legend.position="none")
-p_axis_ushort_brain <- ggplot(brainq, aes(x =sample, y = factor(1), fill = batch)) +
+
+
+p_axis_short_brain <- ggplot(brainq_short, aes(x =batch, y = factor(1), fill = batch_shortname)) +
 geom_tile(width = 1) +
 theme_void() +
-theme(axis.title.x = element_text())  +
+theme(axis.title.x = element_text()) +
+geom_text(aes(label = batch_shortname)) +
 labs(x="Batch Annotation", fill="Batch Annotation") +
-theme(legend.position="none")
+theme(legend.position="none") 
 p5_qb<-p_ushort_brain / p_axis_ushort_brain + plot_layout(heights = c(8, 1))  + scale_fill_igv()
 
 
 
-plot_grid(p5_q,p5_qb, rel_widths = c(2, 1))
+pt3<-plot_grid(p5_q,p5_qb, rel_widths = c(1.7, 1.3))
 
 ```
 
@@ -355,20 +399,24 @@ plot_grid(p5_q,p5_qb, rel_widths = c(2, 1))
 
 ```{r}
 
-ref.genome$batch<-as.factor(ref.genome$batch)
-ref.genome$batch_shortname <- values[ref.genome$batch]
+contaminacion$batch<-as.factor(contaminacion$batch)
+contaminacion$batch_shortname <- values[contaminacion$batch]
 
 
 # Genoma de referencia
 
 
-p_ref.genome<-ggplot(ref.genome,aes(x = reorder(sample, -value), y = value, fill= factor(variable, levels=c("% ref.genome")), width=1.05)) +
+contaminacion <- contaminacion |> 
+    mutate(sample1 = reorder(sample, -ifelse(!variable %in% "% ref.genome", 0, value), FUN = sum))
+
+
+p_ref.genome<-ggplot(contaminacion,aes(x =sample1, y = value, fill = factor(variable, levels=c("virus","bacteria","unmapped","% ref.genome")), width=1.05)) +
 geom_bar( stat = "identity") +
 scale_y_continuous(expand = c(0, 0), breaks = seq(0, 100, by = 10)) +
-labs(x = NULL, y= "% reads" , title="Reference genome % Reads QC", fill="Quality Control") +
+labs(x = NULL, y= "Reads%" , title="Mapped Reads%", fill="Quality Control") +
 theme(axis.text.x = element_blank(),
 axis.ticks.x = element_blank(),
-axis.ticks.length.x = unit(0, "pt")) + scale_fill_jco()+
+axis.ticks.length.x = unit(0, "pt")) + 
 theme(
 panel.background = element_rect(fill='transparent'),
 plot.background = element_rect(fill='transparent', color=NA),
@@ -376,24 +424,32 @@ panel.grid.major = element_blank(),
 panel.grid.minor = element_blank(),
 legend.background = element_rect(fill='transparent'),
 legend.box.background = element_rect(fill='transparent')
-)
-p_axis_ref.genome<- ggplot(ref.genome, aes(x = reorder(sample, -value), y = factor(1), fill = batch_shortname)) +
+) + scale_fill_simpsons(labels=c("Virus","Bacteria","Unmapped","Mapped Reads%"))
+
+
+contaminacion1 <- contaminacion |>
+    distinct(sample, sample1, batch_shortname)
+
+p_axis_ref.genome <- ggplot(contaminacion1, aes(x =sample1, y = factor(1), fill = batch_shortname)) +
 geom_tile(width = 1) +
 theme_void() +
-theme(axis.title.x = element_text(), legend.position=c(1.12,2.6)) +
+theme(axis.title.x = element_text()) + theme(legend.position = "none") +
 labs(x="Batch Annotation", fill="Batch")
 p6_q<-p_ref.genome / p_axis_ref.genome + plot_layout(heights = c(8, 1))  + scale_fill_igv()
 
 
 # Cerebro
 
-p_ref.genome_brain<-ggplot(brainq,aes(x = sample, y = value4, fill = "none")) +
+brainq_contaminacion$batch<-as.factor(brainq_contaminacion$batch)
+brainq_contaminacion$batch_shortname <- values[brainq_contaminacion$batch]
+
+p_ref.genome_brain<-ggplot(brainq_contaminacion,aes(x = batch, y = value,fill = factor(variable, levels=c("virus","bacteria","unmapped","refSpecies")))) +
 geom_bar( stat = "identity") +
 scale_y_continuous(expand = c(0, 0), breaks = seq(0, 100, by = 10)) +
-labs(x = NULL, y= "% reads" , title="Brain Ref Genome QC") +
+labs(x = NULL, y= "% Reads" , title="Mapped Reads%", fill="QC") +
 theme(axis.text.x = element_blank(),
 axis.ticks.x = element_blank(),
-axis.ticks.length.x = unit(0, "pt")) + scale_fill_jco()+
+axis.ticks.length.x = unit(0, "pt")) + scale_fill_simpsons()+
 theme(
 panel.background = element_rect(fill='transparent'),
 plot.background = element_rect(fill='transparent', color=NA),
@@ -403,12 +459,15 @@ legend.background = element_rect(fill='transparent'),
 legend.box.background = element_rect(fill='transparent')
 ) +
 theme(legend.position="none")
-p_axis_ref.genome_brain <- ggplot(brainq, aes(x =sample, y = factor(1), fill = batch)) +
+
+
+p_axis_ref.genome_brain <- ggplot(brainq_contaminacion, aes(x =batch, y = factor(1), fill = batch_shortname)) +
 geom_tile(width = 1) +
 theme_void() +
-theme(axis.title.x = element_text())  +
+theme(axis.title.x = element_text()) +
+geom_text(aes(label = batch_shortname)) +
 labs(x="Batch Annotation", fill="Batch Annotation") +
-theme(legend.position="none")
+theme(legend.position="none") 
 p6_qb<-p_ref.genome_brain / p_axis_ref.genome_brain + plot_layout(heights = c(8, 1))  + scale_fill_igv()
 
 plot_grid(p6_q,p6_qb, rel_widths = c(2, 1))
@@ -418,18 +477,19 @@ plot_grid(p6_q,p6_qb, rel_widths = c(2, 1))
 
 
 ```{r}
-unmapped$batch<-as.factor(unmapped$batch)
-unmapped$batch_shortname <- values[unmapped$batch]
-unmapped$variable<-ifelse(unmapped$variable=="unmapped","Unmapped %")
+
 # Unmapped
 
-p_unmapped<-ggplot(unmapped,aes(x = reorder(sample, -value), y = value, fill = variable, width=1.05)) +
+contaminacion <- contaminacion |> 
+    mutate(sample1 = reorder(sample, -ifelse(!variable %in% "unmapped", 0, value), FUN = sum))
+
+p_unmapped<-ggplot(contaminacion,aes(x =sample1, y = value, fill = factor(variable, levels=c("virus","bacteria","% ref.genome","unmapped")), width=1.05)) +
 geom_bar( stat = "identity") +
 scale_y_continuous(expand = c(0, 0), breaks = seq(0, 100, by = 10)) +
-labs(x = NULL, y= "% reads" , title="Unmapped % Reads QC", fill="Quality Control") +
+labs(x = NULL, y= "Reads%" , title="Unmapped Reads%", fill="Quality Control") +
 theme(axis.text.x = element_blank(),
 axis.ticks.x = element_blank(),
-axis.ticks.length.x = unit(0, "pt")) + scale_fill_jco()+
+axis.ticks.length.x = unit(0, "pt")) + 
 theme(
 panel.background = element_rect(fill='transparent'),
 plot.background = element_rect(fill='transparent', color=NA),
@@ -437,22 +497,28 @@ panel.grid.major = element_blank(),
 panel.grid.minor = element_blank(),
 legend.background = element_rect(fill='transparent'),
 legend.box.background = element_rect(fill='transparent')
-)
-p_axis_unmapped<- ggplot(unmapped, aes(x = reorder(sample, -value), y = factor(1), fill = batch_shortname)) +
+) + scale_fill_simpsons(labels=c("Virus","Bacteria","Mapped Reads%","Unmapped"))
+
+
+contaminacion1 <- contaminacion |>
+    distinct(sample, sample1, batch_shortname)
+
+p_axis_unmapped <- ggplot(contaminacion1, aes(x =sample1, y = factor(1), fill = batch_shortname)) +
 geom_tile(width = 1) +
 theme_void() +
-theme(axis.title.x = element_text(), legend.position=c(1.12,2.6)) +
+theme(axis.title.x = element_text()) + theme(legend.position = "none") +
 labs(x="Batch Annotation", fill="Batch")
 p7_q<-p_unmapped / p_axis_unmapped + plot_layout(heights = c(8, 1))  + scale_fill_igv()
 
+# Cerebro
 
-p_unmapped_brain<-ggplot(brainq,aes(x = sample, y = value5, fill = "none")) +
+p_unmapped_brain<-ggplot(brainq_contaminacion,aes(x = batch, y = value,fill = factor(variable, levels=c("virus","bacteria","unmapped","refSpecies")))) +
 geom_bar( stat = "identity") +
 scale_y_continuous(expand = c(0, 0), breaks = seq(0, 100, by = 10)) +
-labs(x = NULL, y= "% reads" , title="Unmapped Brain QC") +
+labs(x = NULL, y= "% Reads" , title="Unmapped Reads%", fill="QC") +
 theme(axis.text.x = element_blank(),
 axis.ticks.x = element_blank(),
-axis.ticks.length.x = unit(0, "pt")) + scale_fill_jco()+
+axis.ticks.length.x = unit(0, "pt")) + scale_fill_simpsons()+
 theme(
 panel.background = element_rect(fill='transparent'),
 plot.background = element_rect(fill='transparent', color=NA),
@@ -462,12 +528,15 @@ legend.background = element_rect(fill='transparent'),
 legend.box.background = element_rect(fill='transparent')
 ) +
 theme(legend.position="none")
-p_axis_unmapped_brain <- ggplot(brainq, aes(x =sample, y = factor(1), fill = batch)) +
+
+
+p_axis_unmapped_brain <- ggplot(brainq_contaminacion, aes(x =batch, y = factor(1), fill = batch_shortname)) +
 geom_tile(width = 1) +
 theme_void() +
-theme(axis.title.x = element_text())  +
+theme(axis.title.x = element_text()) +
+geom_text(aes(label = batch_shortname)) +
 labs(x="Batch Annotation", fill="Batch Annotation") +
-theme(legend.position="none")
+theme(legend.position="none") 
 p7_qb<-p_unmapped_brain / p_axis_unmapped_brain + plot_layout(heights = c(8, 1))  + scale_fill_igv()
 
 
@@ -477,19 +546,19 @@ plot_grid(p7_q,p7_qb, rel_widths = c(2, 1))
 
 
 ```{r}
-bacteria$batch<-as.factor(bacteria$batch)
-bacteria$batch_shortname <- values[bacteria$batch]
-bacteria$variable<-ifelse(bacteria$variable=="bacteria","Bacteria %")
 
 # Bacteria
 
-p_bacteria<-ggplot(bacteria,aes(x = reorder(sample, -value), y = value, fill = variable, width=1.05)) +
+contaminacion <- contaminacion |> 
+    mutate(sample1 = reorder(sample, -ifelse(!variable %in% "bacteria", 0, value), FUN = sum))
+
+p_bacteria<-ggplot(contaminacion,aes(x =sample1, y = value, fill = factor(variable, levels=c("% ref.genome","unmapped","virus","bacteria")), width=1.05)) +
 geom_bar( stat = "identity") +
 scale_y_continuous(expand = c(0, 0), breaks = seq(0, 100, by = 10)) +
-labs(x = NULL, y= "% reads" , title="Bacteria % Reads QC", fill="Quality Control") +
+labs(x = NULL, y= "Reads%" , title="Bacteria Reads%", fill="Quality Control") +
 theme(axis.text.x = element_blank(),
 axis.ticks.x = element_blank(),
-axis.ticks.length.x = unit(0, "pt")) + scale_fill_jco()+
+axis.ticks.length.x = unit(0, "pt")) + 
 theme(
 panel.background = element_rect(fill='transparent'),
 plot.background = element_rect(fill='transparent', color=NA),
@@ -497,22 +566,29 @@ panel.grid.major = element_blank(),
 panel.grid.minor = element_blank(),
 legend.background = element_rect(fill='transparent'),
 legend.box.background = element_rect(fill='transparent')
-)
-p_axis_bacteria<- ggplot(bacteria, aes(x = reorder(sample, -value), y = factor(1), fill = batch_shortname)) +
+) + scale_fill_simpsons(labels=c("Mapped Reads%","Unmapped","Virus","Bacteria"))
+
+
+contaminacion1 <- contaminacion |>
+    distinct(sample, sample1, batch_shortname)
+
+p_axis_bacteria <- ggplot(contaminacion1, aes(x =sample1, y = factor(1), fill = batch_shortname)) +
 geom_tile(width = 1) +
 theme_void() +
-theme(axis.title.x = element_text(), legend.position=c(1.12,2.6)) +
+theme(axis.title.x = element_text()) + theme(legend.position = "none") +
 labs(x="Batch Annotation", fill="Batch")
 p8_q<-p_bacteria / p_axis_bacteria + plot_layout(heights = c(8, 1))  + scale_fill_igv()
 
 
-p_bacteria_brain<-ggplot(brainq,aes(x = sample, y = value6, fill = "none")) +
+#cerebro
+
+p_bacteria_brain<-ggplot(brainq_contaminacion,aes(x = batch, y = value,fill = factor(variable, levels=c("unmapped","refSpecies","virus","bacteria")))) +
 geom_bar( stat = "identity") +
-scale_y_continuous(expand = c(0, 0), breaks = seq(0, 100, by = 1)) +
-labs(x = NULL, y= "% reads" , title="Bacteria Brain QC") +
+scale_y_continuous(expand = c(0, 0), breaks = seq(0, 100, by = 10)) +
+labs(x = NULL, y= "% Reads" , title="Brain Bacteria Reads%", fill="QC") +
 theme(axis.text.x = element_blank(),
 axis.ticks.x = element_blank(),
-axis.ticks.length.x = unit(0, "pt")) + scale_fill_jco()+
+axis.ticks.length.x = unit(0, "pt")) + scale_fill_simpsons()+
 theme(
 panel.background = element_rect(fill='transparent'),
 plot.background = element_rect(fill='transparent', color=NA),
@@ -522,16 +598,20 @@ legend.background = element_rect(fill='transparent'),
 legend.box.background = element_rect(fill='transparent')
 ) +
 theme(legend.position="none")
-p_axis_bacteria_brain <- ggplot(brainq, aes(x =sample, y = factor(1), fill = batch)) +
+
+
+p_axis_bacteria_brain <- ggplot(brainq_contaminacion, aes(x =batch, y = factor(1), fill = batch_shortname)) +
 geom_tile(width = 1) +
 theme_void() +
-theme(axis.title.x = element_text())  +
+theme(axis.title.x = element_text()) +
+geom_text(aes(label = batch_shortname)) +
 labs(x="Batch Annotation", fill="Batch Annotation") +
-theme(legend.position="none")
+theme(legend.position="none") 
+
 p8_qb<-p_bacteria_brain / p_axis_bacteria_brain + plot_layout(heights = c(8, 1))  + scale_fill_igv()
 
 
-plot_grid(p8_q,p8_qb, rel_widths = c(2, 1))
+pt8<-plot_grid(p8_q,p8_qb, rel_widths = c(1.7, 1.3))
 
 
 ```
@@ -541,17 +621,17 @@ plot_grid(p8_q,p8_qb, rel_widths = c(2, 1))
 ```{r}
 # Virus
 
-virus$batch<-as.factor(virus$batch)
-virus$batch_shortname <- values[virus$batch]
-virus$variable<-ifelse(virus$variable=="virus","Virus %")
 
-p_virus<-ggplot(virus,aes(x = reorder(sample, -value), y = value, fill = variable, width=1.05)) +
+contaminacion <- contaminacion |> 
+    mutate(sample1 = reorder(sample, -ifelse(!variable %in% "virus", 0, value), FUN = sum))
+
+p_virus<-ggplot(contaminacion,aes(x =sample1, y = value, fill = factor(variable, levels=c("% ref.genome","unmapped","bacteria","virus")), width=1.05)) +
 geom_bar( stat = "identity") +
-scale_y_continuous(expand = c(0, 0), breaks = seq(0, 10, by = 1)) +
-labs(x = NULL, y= "% reads" , title="Virus % Reads QC", fill="Quality Control") +
+scale_y_continuous(expand = c(0, 0), breaks = seq(0, 100, by = 10)) +
+labs(x = NULL, y= "Reads%" , title="Virus Reads%", fill="Quality Control") +
 theme(axis.text.x = element_blank(),
 axis.ticks.x = element_blank(),
-axis.ticks.length.x = unit(0, "pt")) + scale_fill_jco()+
+axis.ticks.length.x = unit(0, "pt")) + 
 theme(
 panel.background = element_rect(fill='transparent'),
 plot.background = element_rect(fill='transparent', color=NA),
@@ -559,23 +639,30 @@ panel.grid.major = element_blank(),
 panel.grid.minor = element_blank(),
 legend.background = element_rect(fill='transparent'),
 legend.box.background = element_rect(fill='transparent')
-)
-p_axis_virus<- ggplot(virus, aes(x = reorder(sample, -value), y = factor(1), fill = batch_shortname)) +
+) + scale_fill_simpsons(labels=c("Mapped Reads%","Unmapped","Bacteria","Virus"))
+
+
+contaminacion1 <- contaminacion |>
+    distinct(sample, sample1, batch_shortname)
+
+p_axis_virus <- ggplot(contaminacion1, aes(x =sample1, y = factor(1), fill = batch_shortname)) +
 geom_tile(width = 1) +
 theme_void() +
-theme(axis.title.x = element_text(), legend.position=c(1.12,2.6)) +
-labs(x="Batch Annotation", fill="Batch Annotation")
+theme(axis.title.x = element_text()) + theme(legend.position = "none") +
+labs(x="Batch Annotation", fill="Batch")
+
 p9_q<-p_virus / p_axis_virus + plot_layout(heights = c(8, 1))  + scale_fill_igv()
 
 
+# Cerebro
 
-p_virus_brain<-ggplot(brainq,aes(x = sample, y = value7, fill = "none")) +
+p_virus_brain<-ggplot(brainq_contaminacion,aes(x = batch, y = value,fill = factor(variable, levels=c("unmapped","refSpecies","bacteria","virus")))) +
 geom_bar( stat = "identity") +
-scale_y_continuous(expand = c(0, 0), breaks = seq(0, 100, by = 0.1)) +
-labs(x = NULL, y= "% reads" , title="Virus Brain QC") +
+scale_y_continuous(expand = c(0, 0), breaks = seq(0, 100, by = 10)) +
+labs(x = NULL, y= "% Reads" , title="Brain Virus Reads%", fill="QC") +
 theme(axis.text.x = element_blank(),
 axis.ticks.x = element_blank(),
-axis.ticks.length.x = unit(0, "pt")) + scale_fill_jco()+
+axis.ticks.length.x = unit(0, "pt")) + scale_fill_simpsons()+
 theme(
 panel.background = element_rect(fill='transparent'),
 plot.background = element_rect(fill='transparent', color=NA),
@@ -585,17 +672,97 @@ legend.background = element_rect(fill='transparent'),
 legend.box.background = element_rect(fill='transparent')
 ) +
 theme(legend.position="none")
-p_axis_virus_brain <- ggplot(brainq, aes(x =sample, y = factor(1), fill = batch)) +
+
+
+p_axis_bacteria_virus <- ggplot(brainq_contaminacion, aes(x =batch, y = factor(1), fill = batch_shortname)) +
 geom_tile(width = 1) +
 theme_void() +
-theme(axis.title.x = element_text())  +
+theme(axis.title.x = element_text()) +
+geom_text(aes(label = batch_shortname)) +
 labs(x="Batch Annotation", fill="Batch Annotation") +
-theme(legend.position="none")
+theme(legend.position="none") 
 p9_qb<-p_virus_brain / p_axis_virus_brain + plot_layout(heights = c(8, 1))  + scale_fill_igv()
 
-plot_grid(p9_q,p9_qb, rel_widths = c(2, 1))
+pt9<-plot_grid(p9_q,p9_qb, rel_widths = c(1.7, 1.3))
 ```
 
+
+# Reads totales
+
+```{r}
+
+reads_total2<-data.frame(cross2$sample,cross2$batch_shortname, cross2$reads_total)
+names(reads_total2)<-c("sample","batch_shortname","reads_total")
+
+reads_total_brain<-reads_total[c(13,42,77,106,141,194,222,256),]
+
+
+
+p_reads_t<-ggplot(reads_total,aes(x = reorder(sample, -reads), y = reads, fill = variable, width=1.05)) +
+geom_bar( stat = "identity") +
+scale_y_continuous(expand = c(0, 0)) +
+labs(x = NULL, y= "Reads" , title="Reads total QC", fill="Quality Control") +
+theme(axis.text.x = element_blank(),
+axis.ticks.x = element_blank(),
+axis.ticks.length.x = unit(0, "pt")) + 
+theme(
+panel.background = element_rect(fill='transparent'),
+plot.background = element_rect(fill='transparent', color=NA),
+panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(),
+legend.background = element_rect(fill='transparent'),
+legend.box.background = element_rect(fill='transparent')
+) + scale_fill_manual(values = c("darkgrey"),labels=c("Total Reads"))
+
+p_axis_reads_t<- ggplot(reads_total, aes(x = reorder(sample, -reads), y = factor(1), fill = batch_shortname)) +
+geom_tile(width = 1) +
+theme_void() +
+theme(axis.title.x = element_text(), legend.position=c(1.09,2.2)) +
+labs(x="Batch Annotation", fill="Batch Annotation") + theme(legend.position = "none") + scale_fill_igv()
+
+p10_q<-p_reads_t / p_axis_reads_t + plot_layout(heights = c(8, 1))  
+
+
+# Cerebro
+
+p_reads_total_brain<-ggplot(reads_total_brain,aes(x = sample, y = reads, fill = "none")) +
+geom_bar( stat = "identity") +
+scale_y_continuous(expand = c(0, 0)) +
+labs(x = NULL, y= "Reads" , title="Brain Reads total QC") +
+theme(axis.text.x = element_blank(),
+axis.ticks.x = element_blank(),
+axis.ticks.length.x = unit(0, "pt")) +
+theme(
+panel.background = element_rect(fill='transparent'),
+plot.background = element_rect(fill='transparent', color=NA),
+panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(),
+legend.background = element_rect(fill='transparent'),
+legend.box.background = element_rect(fill='transparent')
+) + theme(legend.position = "none") +
+scale_fill_manual(values = c("darkgrey"))
+
+p_axis_total_brain <- ggplot(reads_total_brain, aes(x =sample, y = factor(1), fill = batch_shortname)) +
+geom_tile(width = 1) +
+geom_text(aes(label = batch_shortname)) +
+theme_void() +
+theme(axis.title.x = element_text()) +  
+labs(x="Batch Annotation") + theme(legend.position = "none") +
+scale_fill_igv()
+
+
+
+p10_qb<-p_reads_total_brain/ p_axis_total_brain + plot_layout(heights = c(8, 1))  
+
+pt10<-plot_grid(p10_q,p10_qb, rel_widths = c(1.7, 1.3))
+```
+
+
+```{r}
+grid.arrange(pt1,pt2,pt3,pt10, nrow = 2,ncol=2)
+grid.arrange(pt8,pt9, nrow = 2)
+
+```
 
 ## Construccion de la matriz de expresion para miRna
 
@@ -656,7 +823,7 @@ filenames <- list.files(pattern="*.tsv")
 matriz<-read.delim(file="/home/david_caceres/Exosomas/Exosomas2/Expresion/Matrices de Expresion/matrixXA.tsv", row.names=1)
 matriz[is.na(matriz)] = 0
 
-names(matriz)=str_sub(names(matriz),2) #Quitamos las X
+names(matriz)=stringr::str_sub(names(matriz),2) #Quitamos las X
 names(matriz) <- gsub(x = names(matriz), pattern = "\\.", replacement = "-") # Cambio los puntos de las muestras de cerebro por guiones
 
 
@@ -693,16 +860,19 @@ cross2$Diagnosis[is.na(cross2$Diagnosis)] = "Control"
 
 cross2<-cross2[,-2]
 
-Reads<-data.frame(tipos_exo$sample,tipos_exo$value)
+Reads<-data.frame(tipos_exo$sample[1:266],tipos_exo$value[1:266])
 colnames(Reads)<-c("sample","Reads")
+Reads<-Reads[- grep("32150179_EXO_S2", Reads$sample),]
 cross2<-merge(cross2, Reads, by="sample")
 
-Short_reads<-data.frame(short$sample,short$value)
+Short_reads<-data.frame(short$sample[1:266],short$value[1:266])
 colnames(Short_reads)<-c("sample","Short_reads")
+Short_reads<-Short_reads[- grep("32150179_EXO_S2", Short_reads$sample),]
 cross2<-merge(cross2, Short_reads, by="sample")
 
-Ultra_short_reads<-data.frame(ushort$sample,ushort$value)
+Ultra_short_reads<-data.frame(ushort$sample[1:266],ushort$value[1:266])
 colnames(Ultra_short_reads)<-c("sample","Ultra_short_reads")
+Ultra_short_reads<-Ultra_short_reads[- grep("32150179_EXO_S2", Ultra_short_reads$sample),]
 cross2<-merge(cross2, Ultra_short_reads, by="sample")
 
 Bacteria<-data.frame(bacteria$sample,bacteria$value)
@@ -713,16 +883,22 @@ Virus<-data.frame(virus$sample,virus$value)
 colnames(Virus)<-c("sample","Virus")
 cross2<-merge(cross2, Virus, by="sample")
 
+reads_total<-read.table(file="/home/david_caceres/Exosomas/Exosomas2/Tablas/Total_reads.tsv", header = TRUE, sep = "\t")
+reads_total<-reads_total[- grep("Brain", reads_total$sample),]
+reads_total<-data.frame(reads_total$sample,reads_total$reads)
+colnames(reads_total)<-c("sample","reads_total")
+
+
+cross2<-merge(cross2, reads_total, by="sample")
+
 
 # Quito las muestras de cerebro
 
 matriz2<-matriz %>% dplyr::select(-contains("Brain"))
 
-matriz2 <- matriz2 %>% 
-    rename_with(~ str_remove(., "X"), everything())
 # Damos el mismo orden de columnas a matriz y metadatos
 
-setcolorder(matriz2,cross2$sample)
+data.table::setcolorder(matriz2,cross2$sample)
 
 # Compruebo que sean iguales
 
@@ -738,9 +914,7 @@ all.equal(colnames(matriz2), cross2$sample)
 # Filtramos por CPM y eliminamos conteos bajos
 
 counts.CPM <- cpm(matriz2)
-thresh <- counts.CPM > 0.5
-
-# Me quedo con los que pasan el umbral
+thresh <- counts.CPM > 50
 keep <- rowSums(thresh) >= 20
 counts.keep <- matriz2[keep,]
 
@@ -772,52 +946,79 @@ cross2.mds <- merge(x = cross2,y = mds,by.x='sample',by.y='row.names')
 colnames(cross2.mds)<-c("sample","OMICID","Age","Sex","Race","Diagnosis","Center","PatientID","batch","Batch" ,"smp","sample_shortname","Reads","Short_reads","Ultra_short_reads","Bacteria","Virus","reads_total","V1","V2")
 
 
-ggplot(cross2.mds, aes(x = V1, y = V2, color = Batch)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Batch") + stat_ellipse() + theme_bw() + scale_color_igv()
+m1<-ggplot(cross2.mds, aes(x = V1, y = V2, color = Batch)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Batch") + stat_ellipse() + theme_bw() 
 
-ggplot(cross2.mds, aes(x = V1, y = V2, color = Sex)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Sex") + stat_ellipse() + theme_bw() + scale_color_igv()
+m1<- m1 + scale_color_igv(name = "Batch")
 
-ggplot(cross2.mds, aes(x = V1, y = V2, color = Diagnosis)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Diagnosis") + stat_ellipse() + theme_bw() + scale_color_igv()
+m2<-ggplot(cross2.mds, aes(x = V1, y = V2, color = Sex)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Sex") + stat_ellipse() + theme_bw() 
 
-ggplot(cross2.mds, aes(x = V1, y = V2, color = Center)) +
+m2<- m2 + scale_color_igv(name = "Sex")
+
+m3<-ggplot(cross2.mds, aes(x = V1, y = V2, color = Diagnosis)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Diagnosis") + stat_ellipse() + theme_bw()
+
+m3<- m3 + scale_color_igv(name = "Diagnosis")
+
+m5<-ggplot(cross2.mds, aes(x = V1, y = V2, color = Center)) +
     geom_point(size = 3) + coord_fixed() + ggtitle("MDS Center") + stat_ellipse() + theme_bw() + scale_color_igv()
 
-ggplot(cross2.mds, aes(x = V1, y = V2, color = Age)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Age") + theme_bw() + scale_color_gradient(low="white", high="red")
+m6<-ggplot(cross2.mds, aes(x = V1, y = V2, color = Age)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Age") + theme_bw()
 
-ggplot(cross2.mds, aes(x = V1, y = V2, color = Reads)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Reads") + theme_bw() + scale_color_gradient(low="white", high="red")
+m6<- m6 + scale_color_gradient(low="white", high="red",name = "Age")
 
-ggplot(cross2.mds, aes(x = V1, y = V2, color = Short_reads)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Short reads") + theme_bw() + scale_color_gradient(low="white", high="red")
+m7<-ggplot(cross2.mds, aes(x = V1, y = V2, color = Reads)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Reads percent") + theme_bw() 
 
-ggplot(cross2.mds, aes(x = V1, y = V2, color = Ultra_short_reads)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Ultra short reads") + theme_bw() + scale_color_gradient(low="white", high="red")
+m7<- m7 + scale_color_gradient(low="white", high="red",name = "Reads%")
 
-ggplot(cross2.mds, aes(x = V1, y = V2, color = Bacteria)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Bacteria") + theme_bw() + scale_color_gradient(low="white", high="dark blue")
+m8<-ggplot(cross2.mds, aes(x = V1, y = V2, color = Short_reads)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Short reads") + theme_bw() 
 
-ggplot(cross2.mds, aes(x = V1, y = V2, color = Virus)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Virus") + theme_bw() + scale_color_gradient(low="white", high="dark blue")
+m8<- m8 + scale_color_gradient(low="white", high="red",name = "Reads%")
 
-ggplot(cross2.mds, aes(x = V1, y = V2, color = reads_total)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Reads total") + theme_bw() + scale_color_gradient(low="white", high="dark blue")
+m9<-ggplot(cross2.mds, aes(x = V1, y = V2, color = Ultra_short_reads)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Ultra short reads") + theme_bw() 
+
+m9<- m9 + scale_color_gradient(low="white", high="red",name = "Reads%")
+
+m10<-ggplot(cross2.mds, aes(x = V1, y = V2, color = Bacteria)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Bacteria") + theme_bw() 
+
+m10<- m10 + scale_color_gradient(low="white", high="dark blue",name = "Bacteria%")
+
+m11<-ggplot(cross2.mds, aes(x = V1, y = V2, color = Virus)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Virus") + theme_bw() 
+
+m11<- m11 + scale_color_gradient(low="white", high="dark blue",name = "Virus%")
+
+m12<-ggplot(cross2.mds, aes(x = V1, y = V2, color = reads_total, label=Batch)) +
+    geom_text(size = 5) + coord_fixed() + ggtitle("MDS Reads total") + theme_bw() 
+
+m12<- m12 + scale_color_gradient(low="white", high="red",name = "Reads total")
+
+
+grid.arrange(m1,m2,m3, nrow=2)
+grid.arrange(m7,m8,m9,m12, nrow=2)
+grid.arrange(m10,m11,nrow=1)
 
 ```
 
-# Paquete swamp para delimitar de donde viene la variación. Empirical bayes. Combat, combinación de batches
-
+# Paquete swamp para delimitar de donde viene la variación. 
 ```{r}
-cross3<-data.frame(cross2$Age,cross2$Gender,cross2$Diagnosis,cross2$batch_shortname, cross2$Reads,cross2$Short_reads,cross2$Ultra_short_reads, cross2$Bacteria, cross2$Virus)
+
+
+cross3<-data.frame(cross2$Age,cross2$Gender,cross2$Diagnosis,cross2$batch_shortname, cross2$Reads,cross2$Short_reads,cross2$Ultra_short_reads,cross2$reads_total, cross2$Bacteria, cross2$Virus)
 rownames(cross3)<-cross2$sample
-colnames(cross3)<-c("Age","Gender","Diagnosis","Batch","Reads","Short Reads", "Ultra short reads", "Bacteria", "Virus")
+colnames(cross3)<-c("Age","Gender","Diagnosis","Batch","Reads perc","Short Reads", "Ultra short reads", "Reads total", "Bacteria", "Virus")
 all.equal(colnames(vsd), rownames(cross3))
 
 cross3$Gender<-as.factor(cross3$Gender)
 cross3$Age<-as.numeric(cross3$Age)
 cross3$Diagnosis<-as.factor(cross3$Diagnosis)
+names(cross3)[names(cross3) == 'Gender'] <- 'Sex'
 
 
 #com1<-combat(logcounts_norm, cross3$Batch, batchcolumn=1)
@@ -827,6 +1028,7 @@ pr_out <- prince(assay(vsd),cross3,top=20,center = TRUE)
 prince.plot(pr_out,note = TRUE,Rsquared = TRUE)
 # No puedo usar kill.pc porque el género es una   asociación biológica.
 
+confounding(cross3,method="chisq")
 
 
 ```
@@ -914,543 +1116,58 @@ matriz_yRNA <- matriz_yRNA %>%
 ```
 
 
-# Análisis cdna
-
-
-```{r}
-
-
-cross3<-cross2
-
-# Damos el mismo orden de columnas a matriz y metadatos
-
-setcolorder(matriz_cdna,cross3$sample)
-
-# Compruebo que sean iguales
-
-all.equal(colnames(matriz_cdna), cross3$sample)
-
-
-# Filtramos por CPM y eliminamos conteos bajos
-
-counts.CPM <- cpm(matriz_cdna)
-thresh <- counts.CPM > 0.5
-
-# Me quedo con los que pasan el umbral
-keep <- rowSums(thresh) >= 2
-counts.keep <- matriz_cdna[keep,]
-
-# Hay columnas sin datos, tenemos que retirarlas
-
-col=colSums(counts.keep)==0
-
-unname(which(col==TRUE))
-
-counts.keep<-counts.keep[, colSums(counts.keep != 0) > 0]
-
-cross3<-cross3[-c(29,31,38,45,48,50,51,65,70,89,94,99,100,108,110,142,150,176,192, 203),]
-
-setcolorder(counts.keep,cross3$sample)
-
-# Compruebo que sean iguales
-
-all.equal(colnames(counts.keep), cross3$sample)
-
-# Matriz de diseño
-design  <-  model.matrix(~0+cross3$Diagnosis)
-
-# Objeto de DESseq
-
-dds <- DESeqDataSetFromMatrix(round(counts.keep),
-colData = cross3,
-design = design)
-
-dim(dds)
-
-dds <- estimateSizeFactors(dds, type="poscounts")
-vsd <- varianceStabilizingTransformation(dds,blind=TRUE)
-
-mds1 <- cmdscale(dist(t(assay(vsd))))
-cross3.mds <- merge(x = cross3,y = mds1,by.x='sample',by.y='row.names')
-
-```
-
-
-
-```{r}
-ggplot(cross3.mds, aes(x = V1, y = V2, color = batch_shortname)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Batch cdna")  + theme_bw() + scale_color_igv()
-
-ggplot(cross3.mds, aes(x = V1, y = V2, color = Gender)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Sex cdna") + theme_bw() + scale_color_igv()
-
-ggplot(cross3.mds, aes(x = V1, y = V2, color = Diagnosis)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Diagnosis cdna") + theme_bw() + scale_color_igv()
-
-ggplot(cross3.mds, aes(x = V1, y = V2, color = Center)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Center")  + theme_bw() + scale_color_igv()
-
-ggplot(cross3.mds, aes(x = V1, y = V2, color = Age)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Age cdna") + theme_bw() + scale_color_gradient(low="white", high="red")
-
-# ggplot(cross3.mds, aes(x = V1, y = V2, color = Reads)) +
-#     geom_point(size = 3) + coord_fixed() + ggtitle("MDS Reads") + theme_bw() + scale_color_gradient(low="white", high="red")
-# 
-# ggplot(cross3.mds, aes(x = V1, y = V2, color = Short_reads)) +
-#     geom_point(size = 3) + coord_fixed() + ggtitle("MDS Short reads") + theme_bw() + scale_color_gradient(low="white", high="red")
-# 
-# ggplot(cross3.mds, aes(x = V1, y = V2, color = Ultra_short_reads)) +
-#     geom_point(size = 3) + coord_fixed() + ggtitle("MDS Ultra short reads") + theme_bw() + scale_color_gradient(low="white", high="red")
-# 
-# ggplot(cross3.mds, aes(x = V1, y = V2, color = Bacteria)) +
-#     geom_point(size = 3) + coord_fixed() + ggtitle("MDS Bacteria") + theme_bw() + scale_color_gradient(low="white", high="dark blue")
-# 
-# ggplot(cross3.mds, aes(x = V1, y = V2, color = Virus)) +
-#     geom_point(size = 3) + coord_fixed() + ggtitle("MDS Virus") + theme_bw() + scale_color_gradient(low="white", high="dark blue")
-```
-
-
-# Genomic tRNA
-
-```{r}
-cross4<-cross2
-
-
-# Damos el mismo orden de columnas a matriz y metadatos
-
-setcolorder(matriz_genomic_tRNA,cross4$sample)
-
-# Compruebo que sean iguales
-
-all.equal(colnames(matriz_genomic_tRNA), cross4$sample)
-
-
-# # SI obtengo error de estabilizacion, quito las columnas que no tienen valores
-# matriz_cdna<-matriz_cdna[, colSums(matriz_cdna != 0) > 0]
-# lol=colSums(matriz_cdna)>10
-# conjunto<-which(lol==TRUE)
-# 
-# cross3<-cross3[-c(29,38,45,48,50,51,70,89,94,100,108,110,142,176,192,203),]
-
-# Filtramos por CPM y eliminamos conteos bajos
-
-counts.CPM <- cpm(matriz_genomic_tRNA)
-thresh <- counts.CPM > 0.5
-
-# Me quedo con los que pasan el umbral
-keep <- rowSums(thresh) >= 10
-counts.keep1 <- matriz_genomic_tRNA[keep,]
-
-
-# Matriz de diseño
-design  <-  model.matrix(~0+cross4$Diagnosis)
-
-# Objeto de DESseq
-
-dds <- DESeqDataSetFromMatrix(counts.keep1,
-colData = cross4,
-design = design)
-
-dim(dds)
-dds <- estimateSizeFactors(dds, type="poscounts")
-vsd <- varianceStabilizingTransformation(dds,blind=TRUE)
-
-mds2 <- cmdscale(dist(t(assay(vsd))))
-cross4.mds <- merge(x = cross4,y = mds2,by.x='sample',by.y='row.names')
-
-```
-
-
-```{r}
-ggplot(cross4.mds, aes(x = V1, y = V2, color = batch_shortname)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Batch Genomic tRNA") + stat_ellipse() + theme_bw() + scale_color_igv()
-
-ggplot(cross4.mds, aes(x = V1, y = V2, color = Gender)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Sex Genomic tRNA") + stat_ellipse() + theme_bw() + scale_color_igv()
-
-ggplot(cross4.mds, aes(x = V1, y = V2, color = Diagnosis)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Diagnosis Genomic tRNA") + stat_ellipse() + theme_bw() + scale_color_igv()
-
-ggplot(cross4.mds, aes(x = V1, y = V2, color = Center)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Center Genomic tRNA") + theme_bw() + scale_color_igv()
-
-ggplot(cross4.mds, aes(x = V1, y = V2, color = Age)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Age Genomic tRNA") + theme_bw() + scale_color_gradient(low="white", high="red")
-# 
-# ggplot(cross4.mds, aes(x = V1, y = V2, color = Reads)) +
-#     geom_point(size = 3) + coord_fixed() + ggtitle("MDS Reads") + theme_bw() + scale_color_gradient(low="white", high="red")
-# 
-# ggplot(cross4.mds, aes(x = V1, y = V2, color = Short_reads)) +
-#     geom_point(size = 3) + coord_fixed() + ggtitle("MDS Short reads") + theme_bw() + scale_color_gradient(low="white", high="red")
-# 
-# ggplot(cross4.mds, aes(x = V1, y = V2, color = Ultra_short_reads)) +
-#     geom_point(size = 3) + coord_fixed() + ggtitle("MDS Ultra short reads") + theme_bw() + scale_color_gradient(low="white", high="red")
-# 
-# ggplot(cross4.mds, aes(x = V1, y = V2, color = Bacteria)) +
-#     geom_point(size = 3) + coord_fixed() + ggtitle("MDS Bacteria") + theme_bw() + scale_color_gradient(low="white", high="dark blue")
-# 
-# ggplot(cross4.mds, aes(x = V1, y = V2, color = Virus)) +
-#     geom_point(size = 3) + coord_fixed() + ggtitle("MDS Virus") + theme_bw() + scale_color_gradient(low="white", high="dark blue")
-```
-
-
-# Hairpin
-
-```{r}
-cross5<-cross2
-
-
-# Damos el mismo orden de columnas a matriz y metadatos
-
-setcolorder(matriz_hairpin,cross5$sample)
-
-# Compruebo que sean iguales
-
-all.equal(colnames(matriz_hairpin), cross5$sample)
-
-
-# # SI obtengo error de estabilizacion, quito las columnas que no tienen valores
-# matriz_cdna<-matriz_cdna[, colSums(matriz_cdna != 0) > 0]
-# lol=colSums(matriz_cdna)>10
-# conjunto<-which(lol==TRUE)
-# 
-# cross3<-cross3[-c(29,38,45,48,50,51,70,89,94,100,108,110,142,176,192,203),]
-
-# Filtramos por CPM y eliminamos conteos bajos
-
-counts.CPM <- cpm(matriz_hairpin)
-thresh <- counts.CPM > 0.5
-
-# Me quedo con los que pasan el umbral
-keep <- rowSums(thresh) >= 10
-counts.keep2 <- matriz_hairpin[keep,]
-
-# Matriz de diseño
-design  <-  model.matrix(~0+cross5$Diagnosis)
-
-# Objeto de DESseq
-
-dds <- DESeqDataSetFromMatrix(counts.keep2,
-colData = cross5,
-design = design)
-
-dim(dds)
-
-
-vsd <- varianceStabilizingTransformation(dds,blind=TRUE)
-
-mds4 <- cmdscale(dist(t(assay(vsd))))
-cross5.mds <- merge(x = cross5,y = mds4,by.x='sample',by.y='row.names')
-
-```
-
-```{r}
-ggplot(cross5.mds, aes(x = V1, y = V2, color = batch_shortname)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Batch hairpin") + stat_ellipse() + theme_bw() + scale_color_igv()
-
-ggplot(cross5.mds, aes(x = V1, y = V2, color = Gender)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Sex hairpin") + stat_ellipse() + theme_bw() + scale_color_igv()
-
-ggplot(cross5.mds, aes(x = V1, y = V2, color = Diagnosis)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Diagnosis hairpin") + stat_ellipse() + theme_bw() + scale_color_igv()
-
-ggplot(cross5.mds, aes(x = V1, y = V2, color = Center)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Center hairpin") + theme_bw() + scale_color_igv()
-
-ggplot(cross5.mds, aes(x = V1, y = V2, color = Age)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Age hairpin") + theme_bw() + scale_color_gradient(low="white", high="red")
-
-# ggplot(cross5.mds, aes(x = V1, y = V2, color = Reads)) +
-#     geom_point(size = 3) + coord_fixed() + ggtitle("MDS Reads") + theme_bw() + scale_color_gradient(low="white", high="red")
-# 
-# ggplot(cross5.mds, aes(x = V1, y = V2, color = Short_reads)) +
-#     geom_point(size = 3) + coord_fixed() + ggtitle("MDS Short reads") + theme_bw() + scale_color_gradient(low="white", high="red")
-# 
-# ggplot(cross5.mds, aes(x = V1, y = V2, color = Ultra_short_reads)) +
-#     geom_point(size = 3) + coord_fixed() + ggtitle("MDS Ultra short reads") + theme_bw() + scale_color_gradient(low="white", high="red")
-# 
-# ggplot(cross5.mds, aes(x = V1, y = V2, color = Bacteria)) +
-#     geom_point(size = 3) + coord_fixed() + ggtitle("MDS Bacteria") + theme_bw() + scale_color_gradient(low="white", high="dark blue")
-# 
-# ggplot(cross5.mds, aes(x = V1, y = V2, color = Virus)) +
-#     geom_point(size = 3) + coord_fixed() + ggtitle("MDS Virus") + theme_bw() + scale_color_gradient(low="white", high="dark blue")
-```
-
-
-# ncRNA
-
-
-```{r}
-cross6<-cross2
-
-
-# Damos el mismo orden de columnas a matriz y metadatos
-
-setcolorder(matriz_ncRNA,cross6$sample)
-
-# Compruebo que sean iguales
-
-all.equal(colnames(matriz_ncRNA), cross6$sample)
-
-
-# # SI obtengo error de estabilizacion, quito las columnas que no tienen valores
-# matriz_cdna<-matriz_cdna[, colSums(matriz_cdna != 0) > 0]
-# lol=colSums(matriz_cdna)>10
-# conjunto<-which(lol==TRUE)
-# 
-# cross3<-cross3[-c(29,38,45,48,50,51,70,89,94,100,108,110,142,176,192,203),]
-
-# Filtramos por CPM y eliminamos conteos bajos
-
-counts.CPM <- cpm(matriz_ncRNA)
-thresh <- counts.CPM > 0.5
-
-# Me quedo con los que pasan el umbral
-keep <- rowSums(thresh) >= 10
-counts.keep3 <- matriz_ncRNA[keep,]
-
-# Matriz de diseño
-design  <-  model.matrix(~0+cross6$Diagnosis)
-
-# Objeto de DESseq
-
-dds <- DESeqDataSetFromMatrix(counts.keep3,
-colData = cross6,
-design = design)
-
-dim(dds)
-
-dds <- estimateSizeFactors(dds, type="poscounts")
-
-vsd <- varianceStabilizingTransformation(dds,blind=TRUE)
-
-mds5 <- cmdscale(dist(t(assay(vsd))))
-
-cross6.mds <- merge(x = cross6,y = mds5,by.x='sample',by.y='row.names')
-
-```
-
-
-
-```{r}
-ggplot(cross6.mds, aes(x = V1, y = V2, color = batch_shortname)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Batch ncRNA") + stat_ellipse() + theme_bw() + scale_color_igv()
-
-ggplot(cross6.mds, aes(x = V1, y = V2, color = Gender)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Sex ncRNA") + stat_ellipse() + theme_bw() + scale_color_igv()
-
-ggplot(cross6.mds, aes(x = V1, y = V2, color = Diagnosis)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Diagnosis ncRNA") + stat_ellipse() + theme_bw() + scale_color_igv()
-
-ggplot(cross6.mds, aes(x = V1, y = V2, color = Center)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Center ncRNA") + theme_bw() + scale_color_igv()
-
-ggplot(cross6.mds, aes(x = V1, y = V2, color = Age)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Age ncRNA") + theme_bw() + scale_color_gradient(low="white", high="red")
-```
-
-
-
-
-# RNA central
-
-
-```{r}
-cross7<-cross2
-
-
-# Damos el mismo orden de columnas a matriz y metadatos
-
-setcolorder(matriz_RNAcentral,cross7$sample)
-
-# Compruebo que sean iguales
-
-all.equal(colnames(matriz_RNAcentral), cross7$sample)
-
-
-# # SI obtengo error de estabilizacion, quito las columnas que no tienen valores
-# matriz_cdna<-matriz_cdna[, colSums(matriz_cdna != 0) > 0]
-# lol=colSums(matriz_cdna)>10
-# conjunto<-which(lol==TRUE)
-# 
-# cross3<-cross3[-c(29,38,45,48,50,51,70,89,94,100,108,110,142,176,192,203),]
-
-# Filtramos por CPM y eliminamos conteos bajos
-
-counts.CPM <- cpm(matriz_RNAcentral)
-thresh <- counts.CPM > 0.5
-
-# Me quedo con los que pasan el umbral
-keep <- rowSums(thresh) >= 2
-counts.keep4 <- matriz_RNAcentral[keep,]
-
-# Matriz de diseño
-design  <-  model.matrix(~0+cross7$Diagnosis)
-
-# Objeto de DESseq
-
-dds <- DESeqDataSetFromMatrix(counts.keep4,
-colData = cross7,
-design = design)
-
-dim(dds)
-
-
-
-
-vsd <- varianceStabilizingTransformation(dds,blind=TRUE)
-
-mds6 <- cmdscale(dist(t(assay(vsd))))
-
-cross7.mds <- merge(x = cross7,y = mds6,by.x='sample',by.y='row.names')
-
-```
-
-
-```{r}
-ggplot(cross7.mds, aes(x = V1, y = V2, color = batch_shortname)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Batch RNAcentral")  + theme_bw() + scale_color_igv()
-
-ggplot(cross7.mds, aes(x = V1, y = V2, color = Gender)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Sex RNAcentral")  + theme_bw() + scale_color_igv()
-
-ggplot(cross7.mds, aes(x = V1, y = V2, color = Diagnosis)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Diagnosis RNAcentral") + theme_bw() + scale_color_igv()
-
-ggplot(cross7.mds, aes(x = V1, y = V2, color = Center)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Center RNAcentral") + theme_bw() + scale_color_igv()
-
-ggplot(cross7.mds, aes(x = V1, y = V2, color = Age)) +
-    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Age RNAcentral") + theme_bw() + scale_color_gradient(low="white", high="red")
-
-# ggplot(cross7.mds, aes(x = V1, y = V2, color = Reads)) +
-#     geom_point(size = 3) + coord_fixed() + ggtitle("MDS Reads") + theme_bw() + scale_color_gradient(low="white", high="red")
-# 
-# ggplot(cross7.mds, aes(x = V1, y = V2, color = Short_reads)) +
-#     geom_point(size = 3) + coord_fixed() + ggtitle("MDS Short reads") + theme_bw() + scale_color_gradient(low="white", high="red")
-# 
-# ggplot(cross7.mds, aes(x = V1, y = V2, color = Ultra_short_reads)) +
-#     geom_point(size = 3) + coord_fixed() + ggtitle("MDS Ultra short reads") + theme_bw() + scale_color_gradient(low="white", high="red")
-# 
-# ggplot(cross7.mds, aes(x = V1, y = V2, color = Bacteria)) +
-#     geom_point(size = 3) + coord_fixed() + ggtitle("MDS Bacteria") + theme_bw() + scale_color_gradient(low="white", high="dark blue")
-# 
-# ggplot(cross7.mds, aes(x = V1, y = V2, color = Virus)) +
-#     geom_point(size = 3) + coord_fixed() + ggtitle("MDS Virus") + theme_bw() + scale_color_gradient(low="white", high="dark blue")
-```
-
-# vRNA
-
-
-```{r}
-cross8<-cross2
-
-
-# Damos el mismo orden de columnas a matriz y metadatos
-
-setcolorder(matriz_vRNA,cross8$sample)
-
-# Compruebo que sean iguales
-
-all.equal(colnames(matriz_vRNA), cross8$sample)
-
-
-# # SI obtengo error de estabilizacion, quito las columnas que no tienen valores
-# matriz_cdna<-matriz_cdna[, colSums(matriz_cdna != 0) > 0]
-# lol=colSums(matriz_cdna)>10
-# conjunto<-which(lol==TRUE)
-# 
-# cross3<-cross3[-c(29,38,45,48,50,51,70,89,94,100,108,110,142,176,192,203),]
-
-# Filtramos por CPM y eliminamos conteos bajos
-
-counts.CPM <- cpm(matriz_vRNA)
-thresh <- counts.CPM > 0.5
-
-# Me quedo con los que pasan el umbral
-keep <- rowSums(thresh) >= 2
-counts.keep <- matriz_vRNA[keep,]
-
-# Matriz de diseño
-design  <-  model.matrix(~0+cross8$Diagnosis)
-
-# Objeto de DESseq
-
-dds <- DESeqDataSetFromMatrix(counts.keep,
-colData = cross8,
-design = design)
-
-dim(dds)
-
-
-
-
-vsd <- varianceStabilizingTransformation(dds,blind=TRUE)
-
-mds3 <- cmdscale(dist(t(assay(vsd))))
-
-cross8.mds <- merge(x = cross8,y = mds3,by.x='sample',by.y='row.names')
-
-```
-
-
-
-
-
 # Boxplots 
 
 
 ```{r}
 
-reads_total<-read.table(file="/home/david_caceres/Exosomas/Exosomas2/Tablas/Total_reads.tsv", header = TRUE, sep = "\t")
-
-cross2<-merge(cross2, reads_total, by="sample")
-
-colnames(cross2)[18] <- 'reads_total'
-
-setwd("/home/david_caceres/Exosomas/Exosomas2/Tablas/p-valores.Batch")
-
-# Reads
- 
- 
-stat.test_reads <- cross2%>% 
-  wilcox_test(Reads ~ batch_shortname) %>%
-  adjust_pvalue() %>%
-  add_significance("p.adj")
-stat.test
-
-stat.test_reads <- stat.test_reads %>% add_y_position()
+# reads_total<-read.table(file="/home/david_caceres/Exosomas/Exosomas2/Tablas/Total_reads.tsv", header = TRUE, sep = "\t")
+# 
+# cross2<-merge(cross2, reads_total, by="sample")
+# 
+# colnames(cross2)[18] <- 'reads_total'
+# 
+# setwd("/home/david_caceres/Exosomas/Exosomas2/Tablas/p-valores.Batch")
+# 
+# # Reads
+#  
+#  
+# stat.test_reads <- cross2%>% 
+#   wilcox_test(Reads ~ batch_shortname, ref.group = "A") %>%
+#   adjust_pvalue() %>%
+#   add_significance("p.adj")
+# stat.test
+# 
+# stat.test_reads <- stat.test_reads %>% add_y_position()
 
 ggboxplot(cross2, x = "batch_shortname", y = "Reads",
           palette = "igv",fill="batch_shortname",order=c("A","B","C","D","E","F","G","H"),
-          legend="right")+stat_pvalue_manual(stat.test_reads, label = "p.adj",tip.length = 0.01)+
-  labs(y= "Reads",x= "Batch",fill="batch_shortname")
+          legend="right")+ labs(y= "Reads%",x= "Batch",fill="Batch", title ="Reads%")
 
 
 # Puedo hacerlo respecto a un solo batch
 
-stat.test <- cross2%>% 
-  wilcox_test(Reads ~ batch_shortname,ref.group = "D") %>%
-  adjust_pvalue() %>%
-  add_significance("p.adj")
-stat.test_reads
+# stat.test <- cross2%>% 
+#   wilcox_test(Reads ~ batch_shortname,ref.group = "A") %>%
+#   adjust_pvalue() %>%
+#   add_significance("p.adj")
+# stat.test_reads
+# 
+# stat.test <- stat.test %>% add_y_position()
 
-stat.test <- stat.test %>% add_y_position()
-
-ggboxplot(cross2, x = "batch_shortname", y = "Reads",
+bp1<-ggboxplot(cross2, x = "batch_shortname", y = "Reads",
           palette = "igv",fill="batch_shortname",order=c("A","B","C","D","E","F","G","H"),
-          legend="right")+stat_pvalue_manual(stat.test, label = "p.adj",tip.length = 0.01) + 
-  labs(y= "Reads",x= "Batch",fill="batch_shortname")
+          legend="right")+labs(y= "Reads%",x= "Batch",fill="Batch", title = "Reads%")
 
-stat.test_reads <- apply(stat.test_reads,2,as.character)
-write.table(stat.test_reads, file = "reads_batch.tsv", append = FALSE, quote = TRUE, sep = "\t ")
+# stat.test_reads <- apply(stat.test_reads,2,as.character)
+# write.table(stat.test_reads, file = "reads_batch.tsv", append = FALSE, quote = TRUE, sep = "\t ")
 
 
 # Age
 
 
 stat.test_age <- cross2%>% 
-  wilcox_test(Age ~ batch_shortname) %>%
+  wilcox_test(Age ~ batch_shortname,ref.group = "A") %>%
   adjust_pvalue() %>%
   add_significance("p.adj")
 stat.test_age
@@ -1459,8 +1176,8 @@ stat.test_age <- stat.test_age %>% add_y_position()
 
 ggboxplot(cross2, x = "batch_shortname", y = "Age",
           palette = "igv",fill="batch_shortname",order=c("A","B","C","D","E","F","G","H"),
-          legend="right")+stat_pvalue_manual(stat.test_age, label = "p.adj",tip.length = 0.01)+
-  labs(y= "Age",x= "Batch",fill="batch_shortname")
+          legend="right")+stat_pvalue_manual(stat.test_age, label = "p.adj.signif",tip.length = 0.01)+
+  labs(y= "Age",x= "Batch",fill="Batch", title="Age significance")
 
 stat.test_age <- apply(stat.test_reads,2,as.character)
 write.table(stat.test_age, file = "age_batch.tsv", append = FALSE, quote = TRUE, sep = "\t ")
@@ -1468,100 +1185,102 @@ write.table(stat.test_age, file = "age_batch.tsv", append = FALSE, quote = TRUE,
 
 # Short
 
-stat.test_short <- cross2%>% 
-  wilcox_test(Short_reads ~ batch_shortname) %>%
-  adjust_pvalue() %>%
-  add_significance("p.adj")
-stat.test_short
+# stat.test_short <- cross2%>% 
+#   wilcox_test(Short_reads ~ batch_shortname,ref.group = "A") %>%
+#   adjust_pvalue() %>%
+#   add_significance("p.adj")
+# stat.test_short
+# 
+# stat.test_short <- stat.test_short %>% add_y_position()
 
-stat.test_short <- stat.test_short %>% add_y_position()
-
-ggboxplot(cross2, x = "batch_shortname", y = "Short_reads",
+bp2<-ggboxplot(cross2, x = "batch_shortname", y = "Short_reads",
           palette = "igv",fill="batch_shortname",order=c("A","B","C","D","E","F","G","H"),
-          legend="right")+stat_pvalue_manual(stat.test_short, label = "p.adj",tip.length = 0.01)+
-  labs(y= "Short reads",x= "Batch",fill="batch_shortname")
+          legend="right")+labs(y= "Short reads",x= "Batch",fill="Batch", title="Short reads%")
 
 
-stat.test_short <- apply(stat.test_short,2,as.character)
-write.table(stat.test_short, file = "short_batch.tsv", append = FALSE, quote = TRUE, sep = "\t ")
+# stat.test_short <- apply(stat.test_short,2,as.character)
+# write.table(stat.test_short, file = "short_batch.tsv", append = FALSE, quote = TRUE, sep = "\t ")
 
 
 # Ultra short
 
 
-stat.test_ushort <- cross2%>% 
-  wilcox_test(Ultra_short_reads ~ batch_shortname) %>%
-  adjust_pvalue() %>%
-  add_significance("p.adj")
-stat.test_ushort
+# stat.test_ushort <- cross2%>% 
+#   wilcox_test(Ultra_short_reads ~ batch_shortname, ref.group = "A") %>%
+#   adjust_pvalue() %>%
+#   add_significance("p.adj")
+# stat.test_ushort
+# 
+# stat.test_ushort <- stat.test_ushort %>% add_y_position()
 
-stat.test_ushort <- stat.test_ushort %>% add_y_position()
-
-ggboxplot(cross2, x = "batch_shortname", y = "Ultra_short_reads",
+bp3<-ggboxplot(cross2, x = "batch_shortname", y = "Ultra_short_reads",
           palette = "igv",fill="batch_shortname",order=c("A","B","C","D","E","F","G","H"),
-          legend="right")+stat_pvalue_manual(stat.test_ushort, label = "p.adj",tip.length = 0.01)+
-  labs(y= "Ultra short reads",x= "Batch",fill="batch_shortname")
+          legend="right")+labs(y= "Ultra short reads",x= "Batch",fill="Batch", title = "Ultra short reads%")
 
-stat.test_ushort <- apply(stat.test_ushort,2,as.character)
-write.table(stat.test_ushort, file = "ushort_batch.tsv", append = FALSE, quote = TRUE, sep = "\t ")
+# stat.test_ushort <- apply(stat.test_ushort,2,as.character)
+# write.table(stat.test_ushort, file = "ushort_batch.tsv", append = FALSE, quote = TRUE, sep = "\t ")
 
 # Bacteria
 
-stat.test_bacteria <- cross2%>% 
-  wilcox_test(Bacteria ~ batch_shortname) %>%
-  adjust_pvalue() %>%
-  add_significance("p.adj")
-stat.test_bacteria
+# stat.test_bacteria <- cross2%>% 
+#   wilcox_test(Bacteria ~ batch_shortname) %>%
+#   adjust_pvalue() %>%
+#   add_significance("p.adj")
+# stat.test_bacteria
+# 
+# stat.test_bacteria <- stat.test_bacteria %>% add_y_position()
 
-stat.test_bacteria <- stat.test_bacteria %>% add_y_position()
+# ggboxplot(cross2, x = "batch_shortname", y = "Bacteria",
+#           palette = "igv",fill="batch_shortname",order=c("A","B","C","D","E","F","G","H"),
+#           legend="right")+stat_pvalue_manual(stat.test_bacteria, label = "p.adj",tip.length = 0.01)+
+#   labs(y= "Bacteria",x= "Batch",fill="batch_shortname")
+# 
+# stat.test_bacteria <- apply(stat.test_bacteria,2,as.character)
+# write.table(stat.test_bacteria, file = "bacteria_batch.tsv", append = FALSE, quote = TRUE, sep = "\t ")
+# 
+# 
+# # Virus
+# 
+# stat.test_virus <- cross2%>% 
+#   wilcox_test(Virus ~ batch_shortname) %>%
+#   adjust_pvalue() %>%
+#   add_significance("p.adj")
+# stat.test_virus
+# 
+# stat.test_virus <- stat.test_virus %>% add_y_position()
+# 
+# ggboxplot(cross2, x = "batch_shortname", y = "Virus",
+#           palette = "igv",fill="batch_shortname",order=c("A","B","C","D","E","F","G","H"),
+#           legend="right")+stat_pvalue_manual(stat.test_virus, label = "p.adj",tip.length = 0.01)+
+#   labs(y= "Virus",x= "Batch",fill="batch_shortname")
+# 
+# stat.test_virus <- apply(stat.test_bacteria,2,as.character)
+# write.table(stat.test_virus, file = "virus_batch.tsv", append = FALSE, quote = TRUE, sep = "\t ")
 
-ggboxplot(cross2, x = "batch_shortname", y = "Bacteria",
+
+
+
+
+# stat.test_reads_total <- cross2%>% 
+#   wilcox_test(reads_total ~ batch_shortname) %>%
+#   adjust_pvalue() %>%
+#   add_significance("p.adj")
+# stat.test_reads_total
+# 
+# stat.test_reads_total <- stat.test_reads_total %>% add_y_position()
+
+bp4<-ggboxplot(cross2, x = "batch_shortname", y = "reads_total",
           palette = "igv",fill="batch_shortname",order=c("A","B","C","D","E","F","G","H"),
-          legend="right")+stat_pvalue_manual(stat.test_bacteria, label = "p.adj",tip.length = 0.01)+
-  labs(y= "Bacteria",x= "Batch",fill="batch_shortname")
-
-stat.test_bacteria <- apply(stat.test_bacteria,2,as.character)
-write.table(stat.test_bacteria, file = "bacteria_batch.tsv", append = FALSE, quote = TRUE, sep = "\t ")
-
-
-# Virus
-
-stat.test_virus <- cross2%>% 
-  wilcox_test(Virus ~ batch_shortname) %>%
-  adjust_pvalue() %>%
-  add_significance("p.adj")
-stat.test_virus
-
-stat.test_virus <- stat.test_virus %>% add_y_position()
-
-ggboxplot(cross2, x = "batch_shortname", y = "Virus",
-          palette = "igv",fill="batch_shortname",order=c("A","B","C","D","E","F","G","H"),
-          legend="right")+stat_pvalue_manual(stat.test_virus, label = "p.adj",tip.length = 0.01)+
-  labs(y= "Virus",x= "Batch",fill="batch_shortname")
-
-stat.test_virus <- apply(stat.test_bacteria,2,as.character)
-write.table(stat.test_virus, file = "virus_batch.tsv", append = FALSE, quote = TRUE, sep = "\t ")
-
-
-
-
-
-stat.test_reads_total <- cross2%>% 
-  wilcox_test(reads_total ~ batch_shortname) %>%
-  adjust_pvalue() %>%
-  add_significance("p.adj")
-stat.test_reads_total
-
-stat.test_reads_total <- stat.test_reads_total %>% add_y_position()
-
-ggboxplot(cross2, x = "batch_shortname", y = "reads_total",
-          palette = "igv",fill="batch_shortname",order=c("A","B","C","D","E","F","G","H"),
-          legend="right")+stat_pvalue_manual(stat.test_reads_total, label = "p.adj",tip.length = 0.01)+
-  labs(y= "Reads total",x= "Batch",fill="batch_shortname")
-
-stat.test_reads_total <- apply(stat.test_reads_total,2,as.character)
-write.table(stat.test_reads_total, file = "reads_total_batch.tsv", append = FALSE, quote = TRUE, sep = "\t ")
+          legend="right")+labs(y= "Reads total",x= "Batch",fill="Batch", title="Total reads")
+# 
+# stat.test_reads_total <- apply(stat.test_reads_total,2,as.character)
+# write.table(stat.test_reads_total, file = "reads_total_batch.tsv", append = FALSE, quote = TRUE, sep = "\t ")
 ```
+
+```{r}
+grid.arrange(bp1,bp2,bp3,bp4, nrow=2, ncol=2)
+```
+
 
 
 # Añado información de patologías a la tabla Cross Sectional
@@ -1569,15 +1288,600 @@ write.table(stat.test_reads_total, file = "reads_total_batch.tsv", append = FALS
 ```{r}
 Cross_sec<-read.table(file="/home/david_caceres/Exosomas/Exosomas2/Tablas/CrossSectional.Dec2018.clean.tsv", header = TRUE, sep = "\t")
 
-columnas<-c("Kidney_Abnormal.Creatinine","Kidney_Abnormal.lipid.profile","Kidney_Abnormal.urine.analysis","Kidney_Biopsy.proven.nephritis","Kidney_Proteinuria","Kidney_Urine.proteins","Lab_Reduced.C3.levels","Lab_Reduced.C4.levels","Symptom_Abnormal.inflammatory.indexes","Symptom_Disease.activity","Sampling_Patient.ID")
+columnas<-c("Demography_GENDER","Kidney_Abnormal.Creatinine","Kidney_Abnormal.lipid.profile","Kidney_Abnormal.urine.analysis","Kidney_Biopsy.proven.nephritis","Kidney_Proteinuria","Kidney_Urine.proteins","Lab_Reduced.C3.levels","Lab_Reduced.C4.levels","Symptom_Abnormal.inflammatory.indexes","Symptom_Disease.activity","Sampling_Patient.ID","Diagnosis_Disease.at.onset")
 
 cross_sec2<-Cross_sec[,(colnames(Cross_sec) %in% columnas)]
 
+cross_sec2$Diagnosis_Disease.at.onset[is.na(cross_sec2$Diagnosis_Disease.at.onset)] = "Control"
+
 colnames(cross_sec2)[colnames(cross_sec2) == "Sampling_Patient.ID"] <- "PatientID"
+colnames(cross_sec2)[colnames(cross_sec2) == 'Demography_GENDER'] <- 'Sex'
+colnames(cross_sec2)[colnames(cross_sec2) == 'Diagnosis_Disease.at.onset'] <- 'Diagnosis'
 
-cross2<-merge(cross2, cross_sec2, by="PatientID")
+cross_sec3<-merge(cross2, cross_sec2, by="PatientID")
 
-colnames(cross2)[colnames(cross2) == "Gender"] <- "Sex"
+colnames(cross_sec3)[colnames(cross_sec3) == "Gender"] <- "Sex"
+
+
+# Sexos como factor
+
+cross_sec3$sex<-factor(cross_sec3$Sex, levels=c("Male","Female"),labels=c(0,1))
+
+
+# Solo individuos con SLE
+
+cross_lupus<-cross_sec3[cross_sec3$Diagnosis == "SLE",]
+cross_lupus<-cross_lupus[,-19]
+# Columna de ínidce inflamatorio como factor
+
+cross_lupus$Symptom_Abnormal.inflammatory.indexes<-factor(cross_lupus$Symptom_Abnormal.inflammatory.indexes, levels=c("No", "Unknown", "Yes","Past","Present"), labels=c(-1, 0, 1, 1, 2))
+
+
+# Tabla con todos los enfermos con los mismos factores
+
+cross_sec4<-cross_sec3
+cross_sec4<-cross_sec4[,-19]
+
+cross_sec4$Symptom_Abnormal.inflammatory.indexes<-factor(cross_sec4$Symptom_Abnormal.inflammatory.indexes, levels=c("No", "Unknown", "Yes","Past","Present"), labels=c(-1, 0, 1, 1, 2))
+
+cross_sec4$Symptom_Abnormal.inflammatory.indexes[is.na(cross_sec4$Symptom_Abnormal.inflammatory.indexes)] <- 0
+
+```
+
+
+# Creo una tabla con la información clínica de pacientes sin micros.
+
+```{r}
+cross_sec2$sex<-factor(cross_sec2$Sex, levels=c("Male","Female"),labels=c(0,1))
+
+
+cross_sec2$Symptom_Abnormal.inflammatory.indexes<-factor(cross_sec2$Symptom_Abnormal.inflammatory.indexes, levels=c("No", "Unknown", "Yes","Past","Present"), labels=c(-1, 0, 1, 1, 2))
+
+cross_sec2$Symptom_Abnormal.inflammatory.indexes[is.na(cross_sec2$Symptom_Abnormal.inflammatory.indexes)] <- 0
+
+cross_no_micro<- cross_sec2 %>% anti_join(cross_sec4, by="PatientID")
+```
+
+
+```{r}
+# Estadísticas
+
+table(cross_no_micro_SLE$Kidney_Biopsy.proven.nephritis)
+
+table(cross_lupus$Kidney_Biopsy.proven.nephritis)
+```
+
+
+```{r}
+
+mean<-mean(reads_total$reads)
+lower1<-mean-sd(reads_total$reads)
+upper1<-mean+sd(reads_total$reads)
+upper<-mean+2*sd(reads_total$reads)
+lower<-mean-2*sd(reads_total$reads)
+
+ggplot(cross2, aes(x=reads_total)) +
+    geom_histogram(aes(y=..count..), colour="black", fill="white",bins=60)+
+    geom_density(alpha=.2, fill="#FF6666") +
+    geom_vline(aes(xintercept = lower), color="red", size=1) +
+    geom_vline(aes(xintercept = upper),color="red",  size=1)+
+    geom_vline(aes(xintercept = lower1), color="blue", size=1) +
+    geom_vline(aes(xintercept = upper1),color="blue",  size=1)+
+    geom_vline(aes(xintercept=median(reads_total), color="dark green"))+
+    geom_vline(aes(xintercept=mean(reads_total), color="red"))+
+    labs(title="Histogram Total reads & SD", x= "Reads Total") +
+    theme(legend.position = "none") + 
+    labs(x="Reads total", y="Number of samples")
+    
+```
+
+# Tablas de mapping por batch
+
+```{r}
+# Pasamos este script por cada carpeta para montar su matriz 
+
+
+setwd("/home/david_caceres/Exosomas/Exosomas2/Mapping/Expresion_180913-190529/")
+filenames <- list.files(pattern="*/*.tsv", recursive=TRUE) # Leo los archivos de una carpeta
+all_files <- lapply(filenames,function(x) { # Cargo los archivos y añado espacios
+read.delim(file = x,
+sep = '\t',
+header = TRUE)
+})
+list3<- lapply(all_files, "[", c(1,5)) # Extraigo las 2 columnas que necesito
+matrixA<-rbindlist(list3,fill=TRUE) # Uno todos los dataframes en uno
+matrixA<-matrixA %>%   # Colapso los datos
+    group_by(name) %>% 
+    summarise(across(starts_with("x"), ~sum(., na.rm = TRUE)))
+write.table(matrixA, file = "/home/david_caceres/Exosomas/Exosomas2/Mapping/Matrices/batch_D.tsv", append = FALSE, quote = TRUE, sep = "\t ")
+```
+
+
+# Tabla total
+
+```{r}
+setwd("/home/david_caceres/Exosomas/Exosomas2/Mapping/Matrices")
+filenames <- list.files(pattern="*/*.tsv", recursive=TRUE) # Leo los archivos de una carpeta
+all_files <- lapply(filenames,function(x) { # Cargo los archivos y añado espacios
+read.delim(file = x,
+sep = '\t',
+header = TRUE)
+})
+matrixA<-rbindlist(all_files, fill=TRUE) # Uno todos los dataframes en uno
+matrixA<-matrixA %>%   # Colapso los datos
+    group_by(name) %>% 
+    summarise(across(starts_with("x"), ~sum(., na.rm = TRUE)))
+write.table(matrixA, file = "/home/david_caceres/Exosomas/Exosomas2/Mapping/Matrices/matriz_mapping.tsv", append = FALSE, quote = TRUE, sep = "\t ")
+
+```
+
+
+# Formato de tabla de small
+
+```{r}
+# Tenemos que poner las muestras en Y y los datos en X para poder hacer barplots stacked
+
+mapping<-read.delim(file ="/home/david_caceres/Exosomas/Exosomas2/Mapping/Matrices/matriz_mapping.tsv",sep = '\t',header = TRUE)
+rownames(mapping)<-mapping$name
+
+
+mapping<-mapping %>% dplyr::select(-contains("Brain"))
+names(mapping)=stringr::str_sub(names(mapping),2)
+mapping<-mapping[,-1]
+
+mapping <- as.data.frame(t(mapping))
+
+# Las columnas que nos interesan
+mapping2<-mapping[c("  Y_RNA #sense", "  vRNA#sense", "  tRNA#sense", "  lncRNA#sense", "  piRNA#sense", "  snoRNA#sense", "  hairpin#sense", "  protein_coding#sense", "  rRNA#sense", "  snRNA#sense", "  mature#sense", "  un-assigned" )]
+
+
+# Las demás en otro data frame
+mapping3<- mapping[ , -which(names(mapping) %in% c("  Y_RNA #sense", "  vRNA#sense", "  tRNA#sense", "  lncRNA#sense", "  piRNA#sense", "  snoRNA#sense", "  hairpin#sense", "  protein_coding#sense", "  rRNA#sense", "  snRNA#sense", "  mature#sense", "  un-assigned" ))]
+
+# Sumamos todas las filas y las dejamos en una sola.
+
+mapping3<-mapping3 %>%
+    mutate(Total = rowSums(.))
+colnames(mapping3)[42]<-"other"
+
+mapping2$other<-mapping3$other
+
+write.table(mapping2, file = "/home/david_caceres/Exosomas/Exosomas2/Mapping/Matrices/matriz_mapping2.tsv", append = FALSE, quote = TRUE, sep = "\t ")
+```
+
+
+```{r}
+small_perc<-read.delim(file ="/home/david_caceres/Exosomas/Exosomas2/Mapping/Matrices/mapping_small.tsv",sep = '\t',header = TRUE)
+small_perc<-merge(col22, small_perc, by="sample")
+```
+
+```{r}
+
+
+small_perc <- small_perc |> 
+   mutate(sample1 = reorder(sample, -ifelse(!variable %in% "  mature#sense", 0, value), FUN = sum))
+
+ps <- ggplot(small_perc,aes(x=sample1, y=value, fill= factor(variable,levels=c("  Y_RNA #sense", "  vRNA#sense", "  tRNA#sense", "  lncRNA#sense", "  piRNA#sense", "  snoRNA#sense", "  hairpin#sense", "  protein_coding#sense", "  rRNA#sense", "  snRNA#sense", "  un-assigned","other", "  mature#sense")), width=1.05)) +
+    geom_bar( stat = "identity", position = position_stack()) +
+    scale_y_continuous(expand = c(0, 0), breaks = seq(0, 100, by = 10)) +
+    labs(x = NULL, y= "% reads" , title="Small RNA reads%", fill="Quality Control") +
+    theme(axis.text.x = element_blank(),
+          axis.ticks.x = element_blank(),
+          axis.ticks.length.x = unit(0, "pt"))  + scale_fill_manual(values=as.vector(stepped3(13)))+
+    theme(
+        panel.background = element_rect(fill='transparent'),
+        plot.background = element_rect(fill='transparent', color=NA),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.background = element_rect(fill='transparent'),
+        legend.box.background = element_rect(fill='transparent')
+    )
+
+
+px_axis <- ggplot(small_perc, aes(x = sample, y = factor(1), fill = batch_shortname)) +
+    geom_tile(width = 1) +
+    theme_void() +
+    theme(axis.title.x = element_text(), legend.position=c(1.03,2.1)) +
+    labs(x="Batch Annotation", fill="Batch")
+
+ps / px_axis + plot_layout(heights = c(8,1))  + scale_fill_igv()
+```
+
+
+# Matriz para RC mature
+
+```{r}
+setwd("/home/david_caceres/Exosomas/Exosomas2/Mapping/Matrices RC/")
+filenames <- list.files(pattern="*/*.tsv", recursive=TRUE) # Leo los archivos de una carpeta
+all_files <- lapply(filenames,function(x) { # Cargo los archivos y añado espacios
+read.delim(file = x,
+sep = '\t',
+header = TRUE)
+})
+list3<- lapply(all_files, "[", c(1,4))
+matrixA<-rbindlist(list3, fill=TRUE) # Uno todos los dataframes en uno
+mapping_RC<-matrixA %>%   # Colapso los datos
+    group_by(name) %>% 
+    summarise(across(starts_with("x"), ~sum(., na.rm = TRUE)))
+write.table(mapping_RC, file = "/home/david_caceres/Exosomas/Exosomas2/Mapping/Matrices RC/batch_H.tsv", append = FALSE, quote = TRUE, sep = "\t ")
+
+
+
+
+setwd("/home/david_caceres/Exosomas/Exosomas2/Mapping/Matrices RC/")
+filenames <- list.files(pattern="*/*.tsv", recursive=TRUE) # Leo los archivos de una carpeta
+all_files <- lapply(filenames,function(x) { # Cargo los archivos y añado espacios
+read.delim(file = x,
+sep = '\t',
+header = TRUE)
+})
+matrixA<-rbindlist(all_files, fill=TRUE) # Uno todos los dataframes en uno
+mapping_RC<-matrixA %>%   # Colapso los datos
+    group_by(name) %>% 
+    summarise(across(starts_with("x"), ~sum(., na.rm = TRUE)))
+
+
+mapping_RC<-mapping_RC %>% dplyr::select(-contains("Brain"))
+names(mapping_RC)=stringr::str_sub(names(mapping_RC),2)
+
+mature<-mapping_RC[13,]
+
+mature <- as.data.frame(t(mature))
+
+mature <- mature %>% slice(-1)
+
+mature$V1<-as.numeric(mature$V1)
+
+mature$sample<-rownames(mature)
+
+mature<-merge(col22,mature, by="sample")
+
+
+
+
+
+
+
+
+```
+
+# Histograma
+
+```{r}
+mean<-mean(mature$V1)
+lower1<-mean-sd(mature$V1)
+upper1<-mean+sd(mature$V1)
+upper<-mean+2*sd(mature$V1)
+lower<-mean-2*sd(mature$V1)
+
+ggplot(mature, aes(x=V1)) +
+    geom_histogram(aes(y=..count..), colour="black", fill="white",bins=100)+
+    geom_density(alpha=.2, fill="#FF6666") +
+    geom_vline(aes(xintercept = lower), color="red", size=1) +
+    geom_vline(aes(xintercept = upper),color="red",  size=1)+
+    geom_vline(aes(xintercept = lower1), color="blue", size=1) +
+    geom_vline(aes(xintercept = upper1),color="blue",  size=1)+
+    geom_vline(aes(xintercept=median(V1), color="dark green"))+
+    geom_vline(aes(xintercept=mean(V1), color="red"))+
+    labs(title="Histogram Mature microRNA & SD", x= "microRNA") +
+    theme(legend.position = "none") + 
+    labs(x="microRNA", y="Number of samples")
+```
+
+
+# Umbral de 5 millones y 200.000 matures
+
+
+
+```{r}
+# Matriz de expresion
+
+# Primero montamos 2 dataframes con un máximo de 5 millones y mínimos de 100k y 200k
+mature2<-mature[mature$V1 < 5000000,]
+mature3<-mature2[mature2$V1 > 200000,]
+mature4<-mature2[mature2$V1 > 100000,]
+
+
+# Matriz de expresión nueva con las muestras eliminadas
+
+matriz_mature<-matriz2 %>% # Para 200k
+select(mature3$sample)
+
+matriz_mature2<-matriz2 %>% # Para 100k
+select(mature4$sample)
+
+
+# De la tabla clínica tenemos que eliminar las muestras que no pasan el corte
+cross2_mature<- cross2 %>% semi_join(mature3, by="sample")
+cross2_mature2<- cross2 %>% semi_join(mature4, by="sample")
+
+cross2_mature<-cross2_mature[, -c(19,20)]
+names(cross2_mature)[names(cross2_mature) == 'batch_shortname.x'] <- 'Batch'
+
+cross2_mature2<-cross2_mature2[, -c(19,20)]
+names(cross2_mature2)[names(cross2_mature2) == 'batch_shortname.x'] <- 'Batch'
+
+```
+
+
+
+```{r}
+# Análisis 
+
+# Filtramos por CPM y eliminamos conteos bajos
+
+counts.CPM <- cpm(matriz_mature)
+thresh <- counts.CPM > 50 # Me quedo con los que pasan el umbral
+keep <- rowSums(thresh) >= 20
+counts.keep <- matriz_mature[keep,]
+
+# Matriz de diseño
+
+design  <-  model.matrix(~0+cross2_mature2$Diagnosis)
+
+# Objeto de DESseq
+
+dds <- DESeqDataSetFromMatrix(counts.keep,
+colData = cross2_mature2,
+design = design)
+
+dim(dds)
+
+
+```
+
+# MDS datos miRNA
+
+```{r}
+# Multi dimensional scaling
+
+vsd <- varianceStabilizingTransformation(dds,blind=TRUE)
+
+mds <- cmdscale(dist(t(assay(vsd))))
+cross2_mature.mds <- merge(x = cross2_mature,y = mds,by.x='sample',by.y='row.names')
+
+colnames(cross2_mature.mds)<-c("sample","OMICID","Age","Sex","Race","Diagnosis","Center","PatientID","batch","Batch" ,"smp","sample_shortname","Reads","Short_reads","Ultra_short_reads","Bacteria","Virus","reads_total","V1","V2")
+
+
+m1<-ggplot(cross2_mature.mds, aes(x = V1, y = V2, color = Batch)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Batch. 200k threshold") + stat_ellipse() + theme_bw() 
+
+ma1<- m1 + scale_color_igv(name = "Batch")
+
+m2<-ggplot(cross2_mature.mds, aes(x = V1, y = V2, color = Sex)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Sex") + stat_ellipse() + theme_bw() 
+
+ma2<- m2 + scale_color_igv(name = "Sex")
+
+m3<-ggplot(cross2_mature.mds, aes(x = V1, y = V2, color = Diagnosis)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Diagnosis") + stat_ellipse() + theme_bw()
+
+ma3<- m3 + scale_color_igv(name = "Diagnosis")
+
+m5<-ggplot(cross2_mature.mds, aes(x = V1, y = V2, color = Center)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Center") + stat_ellipse() + theme_bw() + scale_color_igv()
+
+m6<-ggplot(cross2_mature.mds, aes(x = V1, y = V2, color = Age)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Age") + theme_bw()
+
+ma6<- m6 + scale_color_gradient(low="white", high="red",name = "Age")
+
+m7<-ggplot(cross2_mature.mds, aes(x = V1, y = V2, color = Reads)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Reads percent") + theme_bw() 
+
+ma7<- m7 + scale_color_gradient(low="white", high="red",name = "Reads%")
+
+m8<-ggplot(cross2_mature.mds, aes(x = V1, y = V2, color = Short_reads)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Short reads") + theme_bw() 
+
+ma8<- m8 + scale_color_gradient(low="white", high="red",name = "Reads%")
+
+m9<-ggplot(cross2_mature.mds, aes(x = V1, y = V2, color = Ultra_short_reads)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Ultra short reads") + theme_bw() 
+
+ma9<- m9 + scale_color_gradient(low="white", high="red",name = "Reads%")
+
+m10<-ggplot(cross2_mature.mds, aes(x = V1, y = V2, color = Bacteria)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Bacteria") + theme_bw() 
+
+ma10<- m10 + scale_color_gradient(low="white", high="dark blue",name = "Bacteria%")
+
+m11<-ggplot(cross2_mature.mds, aes(x = V1, y = V2, color = Virus)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Virus") + theme_bw() 
+
+ma11<- m11 + scale_color_gradient(low="white", high="dark blue",name = "Virus%")
+
+m12<-ggplot(cross2_mature.mds, aes(x = V1, y = V2, color = reads_total, label=Batch)) +
+    geom_text(size = 5) + coord_fixed() + ggtitle("MDS Reads total") + theme_bw() 
+
+ma12<- m12 + scale_color_gradient(low="white", high="red",name = "Reads total")
+
+
+grid.arrange(ma1,ma2,ma3, nrow=2)
+grid.arrange(ma7,ma8,ma9,ma12, nrow=2)
+grid.arrange(ma10,ma11,nrow=1)
+
+```
+
+
+
+# Umbral de 5 millones y 100.000 matures
+
+
+```{r}
+# Análisis 
+
+# Filtramos por CPM y eliminamos conteos bajos
+
+counts.CPM <- cpm(matriz_mature2)
+thresh <- counts.CPM > 50
+keep <- rowSums(thresh) >= 20
+counts.keep <- matriz_mature2[keep,]
+
+# Matriz de diseño
+
+design  <-  model.matrix(~0+cross2_mature2$Diagnosis)
+
+# Objeto de DESseq
+
+dds <- DESeqDataSetFromMatrix(counts.keep,
+colData = cross2_mature2,
+design = design)
+
+dim(dds)
+
+
+```
+
+# MDS datos miRNA
+
+```{r}
+# Multi dimensional scaling
+
+vsd <- varianceStabilizingTransformation(dds,blind=TRUE)
+
+mds <- cmdscale(dist(t(assay(vsd))))
+cross2_mature2.mds <- merge(x = cross2_mature2,y = mds,by.x='sample',by.y='row.names')
+
+colnames(cross2_mature2.mds)<-c("sample","OMICID","Age","Sex","Race","Diagnosis","Center","PatientID","batch","Batch" ,"smp","sample_shortname","Reads","Short_reads","Ultra_short_reads","Bacteria","Virus","reads_total","V1","V2")
+
+
+m1<-ggplot(cross2_mature2.mds, aes(x = V1, y = V2, color = Batch)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Batch") + stat_ellipse() + theme_bw() 
+
+mm1<- m1 + scale_color_igv(name = "Batch")
+
+m2<-ggplot(cross2_mature2.mds, aes(x = V1, y = V2, color = Sex)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Sex") + stat_ellipse() + theme_bw() 
+
+mm2<- m2 + scale_color_igv(name = "Sex")
+
+m3<-ggplot(cross2_mature2.mds, aes(x = V1, y = V2, color = Diagnosis)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Diagnosis") + stat_ellipse() + theme_bw()
+
+mm3<- m3 + scale_color_igv(name = "Diagnosis")
+
+m5<-ggplot(cross2_mature2.mds, aes(x = V1, y = V2, color = Center)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Center") + stat_ellipse() + theme_bw() + scale_color_igv()
+
+m6<-ggplot(cross2_mature2.mds, aes(x = V1, y = V2, color = Age)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Age") + theme_bw()
+
+mm6<- m6 + scale_color_gradient(low="white", high="red",name = "Age")
+
+m7<-ggplot(cross2_mature2.mds, aes(x = V1, y = V2, color = Reads)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Reads percent") + theme_bw() 
+
+mm7<- m7 + scale_color_gradient(low="white", high="red",name = "Reads%")
+
+m8<-ggplot(cross2_mature2.mds, aes(x = V1, y = V2, color = Short_reads)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Short reads") + theme_bw() 
+
+mm8<- m8 + scale_color_gradient(low="white", high="red",name = "Reads%")
+
+m9<-ggplot(cross2_mature2.mds, aes(x = V1, y = V2, color = Ultra_short_reads)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Ultra short reads") + theme_bw() 
+
+mm9<- m9 + scale_color_gradient(low="white", high="red",name = "Reads%")
+
+m10<-ggplot(cross2_mature2.mds, aes(x = V1, y = V2, color = Bacteria)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Bacteria") + theme_bw() 
+
+mm10<- m10 + scale_color_gradient(low="white", high="dark blue",name = "Bacteria%")
+
+m11<-ggplot(cross2_mature2.mds, aes(x = V1, y = V2, color = Virus)) +
+    geom_point(size = 3) + coord_fixed() + ggtitle("MDS Virus") + theme_bw() 
+
+mm11<- m11 + scale_color_gradient(low="white", high="dark blue",name = "Virus%")
+
+m12<-ggplot(cross2_mature2.mds, aes(x = V1, y = V2, color = reads_total, label=Batch)) +
+    geom_text(size = 5) + coord_fixed() + ggtitle("MDS Reads total") + theme_bw() 
+
+mm12<- m12 + scale_color_gradient(low="white", high="red",name = "Reads total")
+
+
+grid.arrange(mm1,mm2,mm3, nrow=2)
+grid.arrange(mm7,mm8,mm9,mm12, nrow=2)
+grid.arrange(mm10,mm11,nrow=1)
+
+
+grid.arrange(ma1,mm1, nrow=1)
+
+```
+
+
+# Paquete swamp para delimitar de donde viene la variación. 
+
+```{r}
+rownames(cross3_mature3)<-cross2_mature2$sample
+colnames(cross3_mature3)<-c("Age","Gender","Diagnosis","Batch","Reads perc","Short Reads", "Ultra short reads", "Reads total", "Bacteria", "Virus")
+all.equal(colnames(vsd), rownames(cross3_mature3))
+
+cross3_mature3$Gender<-as.factor(cross3_mature3$Gender)
+cross3_mature3$Age<-as.numeric(cross3_mature3$Age)
+cross3_mature3$Diagnosis<-as.factor(cross3_mature3$Diagnosis)
+names(cross3_mature3)[names(cross3_mature3) == 'Gender'] <- 'Sex'
+
+
+#com1<-combat(logcounts_norm, cross3$Batch, batchcolumn=1)
+
+
+pr_out <- prince(assay(vsd),cross3_mature3,top=20,center = TRUE)
+prince.plot(pr_out,note = TRUE,Rsquared = TRUE)
+# No puedo usar kill.pc porque el género es una   asociación biológica.
+
+confounding(cross3,method="chisq")
+
+
+```
+
+
+# Matriz de expresión para RC percentage Genome distribution
+
+
+```{r}
+setwd("/home/david_caceres/Exosomas/Exosomas2/readLen/Expresion_181023-190319/")
+filenames <- list.files(pattern="*/*.tsv", recursive=TRUE) # Leo los archivos de una carpeta
+all_files <- lapply(filenames,function(x) { # Cargo los archivos y añado espacios
+read.delim(file = x,
+sep = '\t',
+header = TRUE)
+})
+list3<- lapply(all_files, "[", c(1,5))
+matrixA<-rbindlist(list3, fill=TRUE) # Uno todos los dataframes en uno
+readLen_RC<-matrixA %>%   # Colapso los datos
+    group_by(Read.Length..nt.) %>% 
+    summarise(across(starts_with("x"), ~sum(., na.rm = TRUE)))
+
+readLen_RC_H<-readLen_RC %>% dplyr::select(-contains("Brain"))
+names(readLen_RC_H)=stringr::str_sub(names(readLen_RC_H),2)
+names(readLen_RC_H)[names(readLen_RC_H) == 'ead.Length..nt.'] <- 'Read_Length_nt'
+
+
+```
+
+
+# Genome Distribution
+
+```{r}
+
+readLen_RC_T$Total = rowMeans(readLen_RC_T[,c(2,266)])
+readLen_RC_A$A = rowMeans(readLen_RC_A[,c(2,37)])
+readLen_RC_B$B = rowMeans(readLen_RC_B[,c(2,33)])
+readLen_RC_C$C = rowMeans(readLen_RC_C[,c(2,36)])
+readLen_RC_D$D = rowMeans(readLen_RC_D[,c(2,36)])
+readLen_RC_E$E = rowMeans(readLen_RC_E[,c(2,35)])
+readLen_RC_F$F = rowMeans(readLen_RC_F[,c(2,34)])
+readLen_RC_G$G = rowMeans(readLen_RC_G[,c(2,35)])
+readLen_RC_H$H = rowMeans(readLen_RC_H[,c(2,29)])
+
+readLen<-data.frame(readLen_RC_A$Read_Length_nt,readLen_RC_A$A,readLen_RC_B$B,readLen_RC_C$C,readLen_RC_D$D,readLen_RC_E$E,readLen_RC_F$F,readLen_RC_G$G,readLen_RC_H$H)
+names(readLen)<-c("Length", "A","B","C","D","E","F","G","H")
+
+ggplot(readLen_long, aes(x=Length,y=Value,color=Batch)) +  
+geom_line() + scale_color_igv() +  geom_vline(xintercept = 22,linetype="dashed") +  annotate("text", x=23, y=0, label="22nt", angle=0) + theme_bw() + 
+labs(x = "Nucleotide length", y= "% Reads" , title="Genome distribution")
+
 
 ```
 
