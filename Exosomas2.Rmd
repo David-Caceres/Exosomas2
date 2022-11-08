@@ -1282,76 +1282,6 @@ grid.arrange(bp1,bp2,bp3,bp4, nrow=2, ncol=2)
 ```
 
 
-
-# Añado información de patologías a la tabla Cross Sectional
-
-```{r}
-Cross_sec<-read.table(file="/home/david_caceres/Exosomas/Exosomas2/Tablas/CrossSectional.Dec2018.clean.tsv", header = TRUE, sep = "\t")
-
-columnas<-c("Demography_GENDER","Kidney_Abnormal.Creatinine","Kidney_Abnormal.lipid.profile","Kidney_Abnormal.urine.analysis","Kidney_Biopsy.proven.nephritis","Kidney_Proteinuria","Kidney_Urine.proteins","Lab_Reduced.C3.levels","Lab_Reduced.C4.levels","Symptom_Abnormal.inflammatory.indexes","Symptom_Disease.activity","Sampling_Patient.ID","Diagnosis_Disease.at.onset")
-
-cross_sec2<-Cross_sec[,(colnames(Cross_sec) %in% columnas)]
-
-cross_sec2$Diagnosis_Disease.at.onset[is.na(cross_sec2$Diagnosis_Disease.at.onset)] = "Control"
-
-colnames(cross_sec2)[colnames(cross_sec2) == "Sampling_Patient.ID"] <- "PatientID"
-colnames(cross_sec2)[colnames(cross_sec2) == 'Demography_GENDER'] <- 'Sex'
-colnames(cross_sec2)[colnames(cross_sec2) == 'Diagnosis_Disease.at.onset'] <- 'Diagnosis'
-
-cross_sec3<-merge(cross2, cross_sec2, by="PatientID")
-
-colnames(cross_sec3)[colnames(cross_sec3) == "Gender"] <- "Sex"
-
-
-# Sexos como factor
-
-cross_sec3$sex<-factor(cross_sec3$Sex, levels=c("Male","Female"),labels=c(0,1))
-
-
-# Solo individuos con SLE
-
-cross_lupus<-cross_sec3[cross_sec3$Diagnosis == "SLE",]
-cross_lupus<-cross_lupus[,-19]
-# Columna de ínidce inflamatorio como factor
-
-cross_lupus$Symptom_Abnormal.inflammatory.indexes<-factor(cross_lupus$Symptom_Abnormal.inflammatory.indexes, levels=c("No", "Unknown", "Yes","Past","Present"), labels=c(-1, 0, 1, 1, 2))
-
-
-# Tabla con todos los enfermos con los mismos factores
-
-cross_sec4<-cross_sec3
-cross_sec4<-cross_sec4[,-19]
-
-cross_sec4$Symptom_Abnormal.inflammatory.indexes<-factor(cross_sec4$Symptom_Abnormal.inflammatory.indexes, levels=c("No", "Unknown", "Yes","Past","Present"), labels=c(-1, 0, 1, 1, 2))
-
-cross_sec4$Symptom_Abnormal.inflammatory.indexes[is.na(cross_sec4$Symptom_Abnormal.inflammatory.indexes)] <- 0
-
-```
-
-
-# Creo una tabla con la información clínica de pacientes sin micros.
-
-```{r}
-cross_sec2$sex<-factor(cross_sec2$Sex, levels=c("Male","Female"),labels=c(0,1))
-
-
-cross_sec2$Symptom_Abnormal.inflammatory.indexes<-factor(cross_sec2$Symptom_Abnormal.inflammatory.indexes, levels=c("No", "Unknown", "Yes","Past","Present"), labels=c(-1, 0, 1, 1, 2))
-
-cross_sec2$Symptom_Abnormal.inflammatory.indexes[is.na(cross_sec2$Symptom_Abnormal.inflammatory.indexes)] <- 0
-
-cross_no_micro<- cross_sec2 %>% anti_join(cross_sec4, by="PatientID")
-```
-
-
-```{r}
-# Estadísticas
-
-table(cross_no_micro_SLE$Kidney_Biopsy.proven.nephritis)
-
-table(cross_lupus$Kidney_Biopsy.proven.nephritis)
-```
-
-
 ```{r}
 
 mean<-mean(reads_total$reads)
@@ -1820,7 +1750,7 @@ all.equal(colnames(vsd), rownames(cross3_mature3))
 cross3_mature3$Gender<-as.factor(cross3_mature3$Gender)
 cross3_mature3$Age<-as.numeric(cross3_mature3$Age)
 cross3_mature3$Diagnosis<-as.factor(cross3_mature3$Diagnosis)
-names(cross3_mature3)[names(cross3_mature3) == 'Gender'] <- 'Sex'
+names(cross3_mature3)[names(cross3_mature3) == 'Gender'] <- 'Sex' 
 
 
 #com1<-combat(logcounts_norm, cross3$Batch, batchcolumn=1)
@@ -1883,5 +1813,132 @@ geom_line() + scale_color_igv() +  geom_vline(xintercept = 22,linetype="dashed")
 labs(x = "Nucleotide length", y= "% Reads" , title="Genome distribution")
 
 
+```
+
+
+# Modelo de machine learning
+
+
+## Input de los datos
+
+### Añado información de patologías a la tabla Cross Sectional
+
+```{r}
+Cross_sec<-read.table(file="/home/david_caceres/Exosomas/Exosomas2/Tablas/CrossSectional.Dec2018.clean.tsv", header = TRUE, sep = "\t")
+
+columnas<-c("Demography_GENDER","Kidney_Abnormal.Creatinine","Kidney_Abnormal.lipid.profile","Kidney_Abnormal.urine.analysis","Kidney_Biopsy.proven.nephritis","Kidney_Proteinuria","Kidney_Urine.proteins","Lab_Reduced.C3.levels","Lab_Reduced.C4.levels","Symptom_Abnormal.inflammatory.indexes","Symptom_Disease.activity","Sampling_Patient.ID","Diagnosis_Disease.at.onset")
+
+cross_sec2<-Cross_sec[,(colnames(Cross_sec) %in% columnas)]
+
+cross_sec2$Diagnosis_Disease.at.onset[is.na(cross_sec2$Diagnosis_Disease.at.onset)] = "Control"
+
+colnames(cross_sec2)[colnames(cross_sec2) == "Sampling_Patient.ID"] <- "PatientID"
+colnames(cross_sec2)[colnames(cross_sec2) == 'Demography_GENDER'] <- 'Sex'
+colnames(cross_sec2)[colnames(cross_sec2) == 'Diagnosis_Disease.at.onset'] <- 'Diagnosis'
+
+cross_sec3<-merge(cross2, cross_sec2, by="PatientID")
+
+colnames(cross_sec3)[colnames(cross_sec3) == "Gender"] <- "Sex"
+
+
+# Sexos como factor
+
+cross_sec3$sex<-factor(cross_sec3$Sex, levels=c("Male","Female"),labels=c(0,1))
+
+colnames(cross_sec3)[colnames(cross_sec3) == "Diagnosis.x"] <- "Diagnosis"
+cross_sec3<-cross_sec3[,-20]
+
+
+# Solo individuos con SLE
+
+cross_lupus<-cross_sec3[cross_sec3$Diagnosis == "SLE",]
+
+
+# Transformamos los datos
+
+cross_lupus$Symptom_Abnormal.inflammatory.indexes2<-factor(cross_lupus$Symptom_Abnormal.inflammatory.indexes, levels=c("No", "Unknown", "Yes","Past","Present"), labels=c(-1, 0, 1, 1, 2))
+
+cross_lupus$Kidney_Abnormal.Creatinine2<-factor(cross_lupus$Kidney_Abnormal.Creatinine, levels=c("No", "Unknown", "Yes","Past","Present"), labels=c(-1, 0, 1, 1, 2))
+
+cross_lupus$Kidney_Abnormal.lipid.profile2<-factor(cross_lupus$Kidney_Abnormal.lipid.profile, levels=c("No", "Unknown", "Yes","Past","Present"), labels=c(-1, 0, 1, 1, 2))
+
+cross_lupus$Kidney_Abnormal.urine.analysis2<-factor(cross_lupus$Kidney_Abnormal.urine.analysis, levels=c("No", "Unknown", "Yes","Past","Present"), labels=c(-1, 0, 1, 1, 2))
+
+cross_lupus$Kidney_Proteinuria2<-factor(cross_lupus$Kidney_Proteinuria, levels=c("No", "Unknown", "Past","Moderate","Severe"), labels=c(-1, 0, 1, 1, 2))
+
+cross_lupus$Lab_Reduced.C3.levels2<-factor(cross_lupus$Lab_Reduced.C3.levels, levels=c("No", "Unknown", "Yes","Past","Present"), labels=c(-1, 0, 1, 1, 2))
+
+cross_lupus$Lab_Reduced.C4.levels2<-factor(cross_lupus$Lab_Reduced.C4.levels, levels=c("No", "Unknown", "Yes","Past","Present"), labels=c(-1, 0, 1, 1, 2))
+
+
+# Tabla final
+
+lupus_modelo<-data_frame(cross_lupus$Kidney_Biopsy.proven.nephritis,cross_lupus$sex,cross_lupus$Symptom_Abnormal.inflammatory.indexes2,cross_lupus$Kidney_Abnormal.Creatinine2, cross_lupus$Kidney_Abnormal.lipid.profile2,cross_lupus$Kidney_Abnormal.urine.analysis2,cross_lupus$Kidney_Proteinuria2,cross_lupus$Lab_Reduced.C3.levels2,cross_lupus$Lab_Reduced.C4.levels2, cross_lupus$Symptom_Disease.activity)
+
+colnames(lupus_modelo)<-c("Proven_nephritis", "Sex", "Inflammatory", "Creatinine", "lipid", "Urine", "Proteinuria", "C3_levels", "C4_levels","Activity")
+
+
+# Tabla con todos los enfermos con los mismos factores
+
+cross_sec4<-cross_sec3
+cross_sec4<-cross_sec4[,-19]
+
+
+```
+
+
+# Creo una tabla con la información clínica de pacientes sin micros.
+
+```{r}
+
+
+cross_no_micro<- cross_sec2 %>% anti_join(cross_sec4, by="PatientID")
+
+cross_no_micro_SLE<-cross_no_micro[cross_no_micro$Diagnosis == "SLE",]
+
+
+```
+
+
+```{r}
+# Estadísticas
+
+table(cross_no_micro_SLE$Kidney_Biopsy.proven.nephritis)
+
+table(cross_lupus$Kidney_Biopsy.proven.nephritis)
+```
+
+
+```{r}
+# Transformo los datos sin micros y SLE+
+
+cross_no_micro_SLE$sex<-factor(cross_no_micro_SLE$Sex, levels=c("Male","Female"),labels=c(0,1))
+
+cross_no_micro_SLE$Symptom_Abnormal.inflammatory.indexes2<-factor(cross_no_micro_SLE$Symptom_Abnormal.inflammatory.indexes, levels=c("No", "Unknown", "Yes","Past","Present"), labels=c(-1, 0, 1, 1, 2))
+
+cross_no_micro_SLE$Kidney_Abnormal.Creatinine2<-factor(cross_no_micro_SLE$Kidney_Abnormal.Creatinine, levels=c("No", "Unknown", "Yes","Past","Present"), labels=c(-1, 0, 1, 1, 2))
+
+cross_no_micro_SLE$Kidney_Abnormal.lipid.profile2<-factor(cross_no_micro_SLE$Kidney_Abnormal.lipid.profile, levels=c("No", "Unknown", "Yes","Past","Present"), labels=c(-1, 0, 1, 1, 2))
+
+cross_no_micro_SLE$Kidney_Abnormal.urine.analysis2<-factor(cross_no_micro_SLE$Kidney_Abnormal.urine.analysis, levels=c("No", "Unknown", "Yes","Past","Present"), labels=c(-1, 0, 1, 1, 2))
+
+cross_no_micro_SLE$Kidney_Proteinuria2<-factor(cross_no_micro_SLE$Kidney_Proteinuria, levels=c("No", "Unknown", "Past","Moderate","Severe"), labels=c(-1, 0, 1, 1, 2))
+
+cross_no_micro_SLE$Lab_Reduced.C3.levels2<-factor(cross_no_micro_SLE$Lab_Reduced.C3.levels, levels=c("No", "Unknown", "Yes","Past","Present"), labels=c(-1, 0, 1, 1, 2))
+
+cross_no_micro_SLE$Lab_Reduced.C4.levels2<-factor(cross_no_micro_SLE$Lab_Reduced.C4.levels, levels=c("No", "Unknown", "Yes","Past","Present"), labels=c(-1, 0, 1, 1, 2))
+
+```
+
+
+```{r}
+# Modelo sin micros
+
+lupus_modelo_no_micros<-data_frame(cross_no_micro_SLE$Kidney_Biopsy.proven.nephritis,cross_no_micro_SLE$sex,cross_no_micro_SLE$Symptom_Abnormal.inflammatory.indexes2,cross_no_micro_SLE$Kidney_Abnormal.Creatinine2, cross_no_micro_SLE$Kidney_Abnormal.lipid.profile2,cross_no_micro_SLE$Kidney_Abnormal.urine.analysis2,cross_no_micro_SLE$Kidney_Proteinuria2,cross_no_micro_SLE$Lab_Reduced.C3.levels2,cross_no_micro_SLE$Lab_Reduced.C4.levels2, cross_no_micro_SLE$Symptom_Disease.activity)
+
+colnames(lupus_modelo_no_micros)<-c("Proven_nephritis", "Sex", "Inflammatory", "Creatinine", "lipid", "Urine", "Proteinuria", "C3_levels", "C4_levels","Activity")
+
+head(lupus_modelo)
+head(lupus_modelo_no_micros)
 ```
 
