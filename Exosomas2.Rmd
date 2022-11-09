@@ -34,6 +34,7 @@ library(ggpubr)
 library(tidyverse)
 library(rstatix)
 library(gridExtra)
+library(caret)
 ```
 
 
@@ -1852,6 +1853,8 @@ cross_sec3<-cross_sec3[,-20]
 # Solo individuos con SLE
 
 cross_lupus<-cross_sec3[cross_sec3$Diagnosis == "SLE",]
+cross_lupus<-cross_lupus[,-19]
+
 
 
 # Transformamos los datos
@@ -1912,6 +1915,8 @@ table(cross_lupus$Kidney_Biopsy.proven.nephritis)
 ```{r}
 # Transformo los datos sin micros y SLE+
 
+
+
 cross_no_micro_SLE$sex<-factor(cross_no_micro_SLE$Sex, levels=c("Male","Female"),labels=c(0,1))
 
 cross_no_micro_SLE$Symptom_Abnormal.inflammatory.indexes2<-factor(cross_no_micro_SLE$Symptom_Abnormal.inflammatory.indexes, levels=c("No", "Unknown", "Yes","Past","Present"), labels=c(-1, 0, 1, 1, 2))
@@ -1940,5 +1945,188 @@ colnames(lupus_modelo_no_micros)<-c("Proven_nephritis", "Sex", "Inflammatory", "
 
 head(lupus_modelo)
 head(lupus_modelo_no_micros)
+
+write.table(lupus_modelo, file = "/home/david_caceres/Exosomas/Exosomas2/Tablas/lupus_modelo.tsv", append = FALSE, quote = TRUE, sep = "\t ")
+write.table(lupus_modelo_no_micros, file = "/home/david_caceres/Exosomas/Exosomas2/Tablas/lupus_modelo_no_micros.tsv", append = FALSE, quote = TRUE, sep = "\t ")
+
+
+```
+
+
+```{r}
+test<-read.table(file="/home/david_caceres/Exosomas/Exosomas2/Tablas/lupus_modelo.tsv", header = TRUE, sep = "\t")
+training<-read.table(file="/home/david_caceres/Exosomas/Exosomas2/Tablas/lupus_modelo_no_micros.tsv", header = TRUE, sep = "\t")
+
+
+training$Proven_nephritis<-as.factor(training$Proven_nephritis)
+test$Proven_nephritis<-as.factor(test$Proven_nephritis)
+
+
+
+```
+
+```{r}
+
+test<-test[,-10]
+training<-training[,-10]
+
+library(plyr)
+training$Proven_nephritis<-revalue(training$Proven_nephritis, c(" No"="No", " Unknown"="Unknown", " Yes" = "Yes"))
+test$Proven_nephritis<-revalue(test$Proven_nephritis, c(" No"="No", " Unknown"="Unknown", " Yes" = "Yes"))
+
+
+# Elimino los Unknown
+
+training<-training[- grep("Unknown", training$Proven_nephritis),]
+test<-test[- grep("Unknown", test$Proven_nephritis),]
+
+training$Proven_nephritis <- factor(training$Proven_nephritis, levels = c("No","Yes"))
+test$Proven_nephritis <- factor(test$Proven_nephritis, levels = c("No","Yes"))
+
+```
+
+
+
+
+# Training control
+
+```{r}
+trControl <- trainControl(method = "repeatedcv",
+                          number = 10,
+                          repeats = 100,
+                          classProbs = TRUE,
+                          summaryFunction = twoClassSummary)
+```
+
+# Model training
+
+```{r}
+
+
+model <- train(Proven_nephritis ~ .,
+             data = training,
+             method = 'rf',
+             tuneLength = 20,
+             trControl = trControl,
+             metric = "ROC")
+
+
+model_svm <- train(Proven_nephritis ~ .,
+             data = training,
+             method = 'svmLinear',
+             tuneLength = 20,
+             trControl = trControl,
+             metric = "ROC")
+
+model_knn <- train(Proven_nephritis ~ .,
+             data = training,
+             method = 'knn',
+             tuneLength = 20,
+             trControl = trControl,
+             metric = "ROC")
+
+
+model_nb <- train(Proven_nephritis ~ .,
+             data = training,
+             method = 'naive_bayes',
+             tuneLength = 20,
+             trControl = trControl,
+             metric = "ROC")
+
+
+```
+
+
+# Predicciones
+
+```{r}
+# Se obtienen las probabilidades predichas para cada clase
+pred <- predict(object = model,
+                        newdata = test,
+                        type = "prob")
+# Cálculo de la curva
+curva_roc_rf <- roc(response = test$Proven_nephritis, 
+                 predictor = pred$Yes) 
+
+# Gráfico de la curva
+auc(curva_roc)
+p1<-plot(curva_roc_rf, main= "Random Forest", col="red", print.auc=TRUE)
+
+plot(model)
+
+
+
+
+# Se obtienen las probabilidades predichas para cada clase
+pred <- predict(object = model_svm,
+                        newdata = test,
+                        type = "prob")
+# Cálculo de la curva
+curva_roc_svm <- roc(response = test$Proven_nephritis, 
+                 predictor = pred$Yes) 
+
+# Gráfico de la curva
+auc(curva_roc)
+p2<-plot(curva_roc_svm, main= "SVM", col="red", print.auc=TRUE)
+
+plot(model_svm)
+
+
+
+# Se obtienen las probabilidades predichas para cada clase
+pred <- predict(object = model_knn,
+                        newdata = test,
+                        type = "prob")
+# Cálculo de la curva
+curva_roc_knn <- roc(response = test$Proven_nephritis, 
+                 predictor = pred$Yes) 
+
+# Gráfico de la curva
+auc(curva_roc)
+p3<-plot(curva_roc_knn, main= "kNN", col="red", print.auc=TRUE)
+
+plot(model_knn)
+
+
+# Se obtienen las probabilidades predichas para cada clase
+pred <- predict(object = model_nb,
+                        newdata = test,
+                        type = "prob")
+# Cálculo de la curva
+curva_roc_nb <- roc(response = test$Proven_nephritis, 
+                 predictor = pred$Yes) 
+
+# Gráfico de la curva
+auc(curva_roc)
+p4<-plot(curva_roc_nb, main= "NB", col="red", print.auc=TRUE)
+
+plot(model_nb)
+
+```
+
+
+```{r}
+par(mfrow=c(2,2))
+p1
+p2
+p3
+p4
+```
+
+# Matriz de confusión
+
+```{r}
+
+pred <- predict(object = model,
+                        newdata = test,
+                        type = "raw")
+
+confusionMatrix(test$Proven_nephritis, pred, positive = "Yes")
+
+
+
+trellis.par.set(caretTheme())
+densityplot(model, pch = "|")
+
 ```
 
