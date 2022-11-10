@@ -2130,3 +2130,19 @@ densityplot(model, pch = "|")
 
 ```
 
+
+
+# Resampling
+
+```{r}
+
+set.seed(3456)
+trainIndex <- createDataPartition(training$Proven_nephritis, p = 0.75,  
+                                  list = FALSE, 
+                                  times = 10)
+
+
+Train2 <- training[ trainIndex,]
+Test2  <- training[-trainIndex,]
+```
+
