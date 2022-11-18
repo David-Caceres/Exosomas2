@@ -2089,13 +2089,71 @@ test<-rbind(test2,test3,test4,test5,test6,test7,test8,test9,test10,test11)
 
 
 
-
-
-trainIndex <- createDataPartition(training$Proven_nephritis, p = .75, 
+library(doParallel)
+TrainModelSet <- training[training$Proven_nephritis!='Unknown',]
+TrainModelSet$Proven_nephritis <- factor(TrainModelSet$Proven_nephritis)
+trainIndex <- createDataPartition(TrainModelSet$Proven_nephritis, p = .75, 
                                   list = FALSE, 
-                                  times = 10)
+                                  times = 20)
 
-train <- training[ trainIndex,]
+models.sub <- list()
+for (i in 1:ncol(trainIndex)) {
+  models.sub[[i]] <- list()
+  models.sub[[i]][["train"]] <- TrainModelSet[trainIndex[,i],]
+  models.sub[[i]][["test"]] <- TrainModelSet[-trainIndex[,i],]
+  cl <- makePSOCKcluster(10)
+  registerDoParallel(cl)
+  models.sub[[i]]$modelRF <- train(Proven_nephritis ~ .,
+                                   data = models.sub[[i]]$train,
+                                   method = 'rf',
+                                   tuneLength = 20,
+                                   trControl = trControl,
+                                   metric = "ROC")
+  stopCluster(cl)
+  models.sub[[i]]$predRF <- predict(object = models.sub[[i]]$modelRF,
+                                    newdata = models.sub[[i]][["test"]],
+                                    type = "prob")
+  cl <- makePSOCKcluster(10)
+  registerDoParallel(cl)
+  models.sub[[i]]$modelKNN <- train(Proven_nephritis ~ .,
+                                   data = models.sub[[i]]$train,
+                                   method = 'knn',
+                                   tuneLength = 20,
+                                   trControl = trControl,
+                                   metric = "ROC")
+  stopCluster(cl)
+  models.sub[[i]]$predKNN <- predict(object = models.sub[[i]]$modelKNN,
+                                    newdata = models.sub[[i]][["test"]],
+                                    type = "prob")
+  cl <- makePSOCKcluster(10)
+  registerDoParallel(cl)
+  models.sub[[i]]$modelSVM <- train(Proven_nephritis ~ .,
+                                   data = models.sub[[i]]$train,
+                                   method = 'svm',
+                                   tuneLength = 20,
+                                   trControl = trControl,
+                                   metric = "ROC")
+  stopCluster(cl)
+  models.sub[[i]]$predSVM <- predict(object = models.sub[[i]]$modelSVM,
+                                    newdata = models.sub[[i]][["test"]],
+                                    type = "prob")
+  cl <- makePSOCKcluster(10)
+  registerDoParallel(cl)
+  models.sub[[i]]$modelNB <- train(Proven_nephritis ~ .,
+                                   data = models.sub[[i]]$train,
+                                   method = 'nb',
+                                   tuneLength = 20,
+                                   trControl = trControl,
+                                   metric = "ROC")
+  stopCluster(cl)
+  models.sub[[i]]$predNB <- predict(object = models.sub[[i]]$modelNB,
+                                    newdata = models.sub[[i]][["test"]],
+                                    type = "prob")
+}
+
+dim(TrainModelSet[trainIndex[,1],])
+dim(TrainModelSet[-trainIndex[,1],])
+
 
 train$Proven_nephritis<-as.factor(train$Proven_nephritis) 
 train$Proven_nephritis<-revalue(train$Proven_nephritis, c(" No"="No",  " Yes" = "Yes"))
@@ -2190,7 +2248,7 @@ test2$Proven_nephritis<-revalue(test2$Proven_nephritis, c(" Unknown" = "Unknown"
 
 ```{r}
 # Se obtienen las probabilidades predichas para cada clase
-predict <- predict(object = model,
+pred <- predict(object = model,
                         newdata = test3,
                         type = "prob")
 # Cálculo de la curva
@@ -2269,7 +2327,11 @@ confusionMatrix(as.factor(test3$Proven_nephritis), pred, positive = "Yes")
 
 trellis.par.set(caretTheme())
 densityplot(model, pch = "|")
+modelImp <- varImp(model, scale = FALSE)
+plot(modelImp, top = 9)
 
+trellis.par.set(caretTheme())
+plot(model)  
 
 ```
 
@@ -2283,6 +2345,200 @@ predict <- predict(object = model,
                         newdata = test2,
                         type = "raw")
 
+
+```
+
+
+
+# Model training Accuracy
+
+
+
+# Training control
+
+```{r}
+trControl2 <- trainControl(method = "repeatedcv",
+                          number = 10,
+                          repeats = 100,
+                          classProbs = TRUE,
+                          summaryFunction = defaultSummary,
+                          savePredictions = TRUE)
+```
+
+
+
+```{r}
+
+
+model2 <- train(Proven_nephritis ~ .,
+             data = train,
+             method = 'rf',
+             tuneLength = 20,
+             trControl = trControl2,
+             metric = "Accuracy")
+
+
+model_svm <- train(Proven_nephritis ~ .,
+             data = train,
+             method = 'svmLinear',
+             tuneLength = 20,
+             trControl = trControl,
+             metric = "Accuracy")
+
+model_knn <- train(Proven_nephritis ~ .,
+             data = train,
+             method = 'knn',
+             tuneLength = 20,
+             trControl = trControl,
+             metric = "Accuracy")
+
+
+model_nb <- train(Proven_nephritis ~ .,
+             data = train,
+             method = 'naive_bayes',
+             tuneLength = 20,
+             trControl = trControl,
+             metric = "Accuracy")
+
+
+```
+
+
+# Guardo los modelos 
+
+```{r}
+saveRDS(model2, "model2.rds")
+model2 <- readRDS("model2.rds")
+
+saveRDS(model_svm2, "model_svm2.rds")
+model_svm2<- readRDS("model_svm2.rds")
+
+saveRDS(model_knn2, "model_knn2.rds")
+model_knn2<- readRDS("model_knn2.rds")
+
+saveRDS(model_nb2, "model_nb2.rds")
+model_nb2 <- readRDS("model_nb2.rds")
+
+
+```
+
+
+# Predicciones Accuracy
+
+
+```{r}
+test2<-test[test$Proven_nephritis %like% "Unknown",]
+test3<-test[test$Proven_nephritis != 'Unknown',]
+
+write.table(test3, file = "/home/david_caceres/Exosomas/Exosomas2/Tablas/test3.tsv", append = FALSE, quote = TRUE, sep = "\t ")
+test3<-read.table(file="/home/david_caceres/Exosomas/Exosomas2/Tablas/test3.tsv", header = TRUE, sep = "\t")
+write.table(test2, file = "/home/david_caceres/Exosomas/Exosomas2/Tablas/test2.tsv", append = FALSE, quote = TRUE, sep = "\t ")
+test2<-read.table(file="/home/david_caceres/Exosomas/Exosomas2/Tablas/test2.tsv", header = TRUE, sep = "\t")
+
+
+test3$Proven_nephritis<-as.factor(test3$Proven_nephritis)
+test2$Proven_nephritis<-as.factor(test2$Proven_nephritis)
+
+library(plyr)
+test3$Proven_nephritis<-revalue(test3$Proven_nephritis, c(" No"="No", " Yes" = "Yes"))
+test2$Proven_nephritis<-revalue(test2$Proven_nephritis, c(" Unknown" = "Unknown"))
+
+
+
+```
+
+
+
+```{r}
+# Se obtienen las probabilidades predichas para cada clase
+pred2 <- predict(object = model2,
+                        newdata = test3,
+                        type = "prob")
+# Cálculo de la curva
+curva_roc_rf2 <- roc(response = test3$Proven_nephritis, predictor = pred2$Yes) 
+
+
+p1<-plot(curva_roc_rf2, main= "Random Forest", col="red", print.auc=TRUE)
+
+plot(model2)
+
+
+
+
+
+# Se obtienen las probabilidades predichas para cada clase
+pred2 <- predict(object = model_svm2,
+                        newdata = test3,
+                        type = "prob")
+# Cálculo de la curva
+curva_roc_svm2 <- roc(response = test3$Proven_nephritis, 
+                 predictor = pred2$Yes) 
+
+
+p2<-plot(curva_roc_svm2, main= "SVM", col="red", print.auc=TRUE)
+
+plot(model_svm2)
+
+
+
+# Se obtienen las probabilidades predichas para cada clase
+pred2 <- predict(object = model_knn2,
+                        newdata = test3,
+                        type = "prob")
+# Cálculo de la curva
+curva_roc_knn2 <- roc(response = test3$Proven_nephritis, 
+                 predictor = pred2$Yes) 
+
+
+p3<-plot(curva_roc_knn2, main= "kNN", col="red", print.auc=TRUE)
+
+plot(model_knn2)
+
+
+# Se obtienen las probabilidades predichas para cada clase
+pred2 <- predict(object = model_nb2,
+                        newdata = test3,
+                        type = "prob")
+# Cálculo de la curva
+curva_roc_nb2 <- roc(response = test3$Proven_nephritis, 
+                 predictor = pred2$Yes) 
+
+
+p4<-plot(curva_roc_nb2, main= "NB", col="red", print.auc=TRUE)
+
+plot(model_nb2)
+
+```
+
+
+```{r}
+par(mfrow=c(2,2))
+
+```
+
+# Matriz de confusión
+
+```{r}
+
+pred2 <- predict(object = model2,
+                        newdata = test3,
+                        type = "raw")
+
+confusionMatrix(as.factor(test3$Proven_nephritis), pred2, positive = "Yes")
+
+
+
+trellis.par.set(caretTheme())
+densityplot(model2, pch = "|")
+modelImp2 <- varImp(model2, scale = FALSE)
+plot(modelImp2, top = 8)
+
+cal_obj <- calibration(Proven_nephritis ~ .,
+                       data = train,
+                       cuts = 10)
+plot(cal_obj, type = "l", auto.key = list(columns = 3,
+                                          lines = TRUE,
+                                          points = FALSE))
 
 ```
 
