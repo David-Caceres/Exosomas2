@@ -1916,22 +1916,23 @@ table(cross_lupus$Kidney_Biopsy.proven.nephritis)
 # Transformo los datos sin micros y SLE+
 
 
+cross_no_micro[is.na(cross_no_micro)] <- "Unknown"
 
 cross_no_micro_SLE$sex<-factor(cross_no_micro_SLE$Sex, levels=c("Male","Female"),labels=c(0,1))
 
-cross_no_micro_SLE$Symptom_Abnormal.inflammatory.indexes2<-factor(cross_no_micro_SLE$Symptom_Abnormal.inflammatory.indexes, levels=c("No", "Unknown", "Yes","Past","Present"), labels=c(-1, 0, 1, 1, 2))
+cross_no_micro_SLE$Symptom_Abnormal.inflammatory.indexes2<-factor(cross_no_micro_SLE$Symptom_Abnormal.inflammatory.indexes, levels=c("No", "Unknown","Past","Present"), labels=c(-2, 0, -1, 1))
 
-cross_no_micro_SLE$Kidney_Abnormal.Creatinine2<-factor(cross_no_micro_SLE$Kidney_Abnormal.Creatinine, levels=c("No", "Unknown", "Yes","Past","Present"), labels=c(-1, 0, 1, 1, 2))
+cross_no_micro_SLE$Kidney_Abnormal.Creatinine2<-factor(cross_no_micro_SLE$Kidney_Abnormal.Creatinine, levels=c("No", "Unknown", "Past","Present"), labels=c(-2, 0, -1, 1)) 
 
-cross_no_micro_SLE$Kidney_Abnormal.lipid.profile2<-factor(cross_no_micro_SLE$Kidney_Abnormal.lipid.profile, levels=c("No", "Unknown", "Yes","Past","Present"), labels=c(-1, 0, 1, 1, 2))
+cross_no_micro_SLE$Kidney_Abnormal.lipid.profile2<-factor(cross_no_micro_SLE$Kidney_Abnormal.lipid.profile, levels=c("No", "Unknown", "Past","Present"), labels=c(-2, 0, -1, 1))
 
-cross_no_micro_SLE$Kidney_Abnormal.urine.analysis2<-factor(cross_no_micro_SLE$Kidney_Abnormal.urine.analysis, levels=c("No", "Unknown", "Yes","Past","Present"), labels=c(-1, 0, 1, 1, 2))
+cross_no_micro_SLE$Kidney_Abnormal.urine.analysis2<-factor(cross_no_micro_SLE$Kidney_Abnormal.urine.analysis, levels=c("No", "Unknown","Past","Present"), labels=c(-2, 0, -1, 1))
 
-cross_no_micro_SLE$Kidney_Proteinuria2<-factor(cross_no_micro_SLE$Kidney_Proteinuria, levels=c("No", "Unknown", "Past","Moderate","Severe"), labels=c(-1, 0, 1, 1, 2))
+cross_no_micro_SLE$Kidney_Proteinuria2<-factor(cross_no_micro_SLE$Kidney_Proteinuria, levels=c("No", "Unknown", "Past","Moderate","Severe"), labels=c(-2, 0, -1,1, 1))
 
-cross_no_micro_SLE$Lab_Reduced.C3.levels2<-factor(cross_no_micro_SLE$Lab_Reduced.C3.levels, levels=c("No", "Unknown", "Yes","Past","Present"), labels=c(-1, 0, 1, 1, 2))
+cross_no_micro_SLE$Lab_Reduced.C3.levels2<-factor(cross_no_micro_SLE$Lab_Reduced.C3.levels, levels=c("No", "Unknown", "Past","Present"), labels=c(-2, 0, -1, 1))
 
-cross_no_micro_SLE$Lab_Reduced.C4.levels2<-factor(cross_no_micro_SLE$Lab_Reduced.C4.levels, levels=c("No", "Unknown", "Yes","Past","Present"), labels=c(-1, 0, 1, 1, 2))
+Lab_Reduced.C4.levels2<-factor(cross_no_micro_SLE$Lab_Reduced.C4.levels, levels=c("No", "Unknown", "Past","Present"), labels=c(-2, 0,  -1, 1))
 
 ```
 
@@ -1976,11 +1977,14 @@ test$Proven_nephritis<-revalue(test$Proven_nephritis, c(" No"="No", " Unknown"="
 
 # Quito los unknown de los datos de entrenamiento
 
-training<-training[- grep("Unknown", training$Proven_nephritis),]
+
 
 write.table(training, file = "/home/david_caceres/Exosomas/Exosomas2/Tablas/training.tsv", append = FALSE, quote = TRUE, sep = "\t ")
 
 training<-read.table(file="/home/david_caceres/Exosomas/Exosomas2/Tablas/training.tsv", header = TRUE, sep = "\t")
+
+training$Proven_nephritis<-as.factor(training$Proven_nephritis)
+
 
 
 
@@ -2009,85 +2013,7 @@ trControl <- trainControl(method = "repeatedcv",
 
 ```{r}
 
-set.seed(3456)
-
-ind2 <-sample(2, nrow(training),replace=T, prob = c(0.75, 0.25))
-
-train2 <- training[ind2 == 1,]
-test2 <- training[ind2 == 2,]
-
-
-set.seed(63214)
-
-ind3 <-sample(2, nrow(training),replace=T, prob = c(0.75, 0.25))
-
-train3 <- training[ind3 == 1,]
-test3 <- training[ind3 == 2,]
-
-
-set.seed(568)
-
-ind4 <-sample(2, nrow(training),replace=T, prob = c(0.75, 0.25))
-
-train4 <- training[ind4 == 1,]
-test4 <- training[ind4 == 2,]
-
-set.seed(25842)
-
-ind4 <-sample(2, nrow(training),replace=T, prob = c(0.75, 0.25))
-
-train5 <- training[ind5 == 1,]
-test5 <- training[ind5 == 2,]
-
-set.seed(25842)
-
-ind6 <-sample(2, nrow(training),replace=T, prob = c(0.75, 0.25))
-
-train6 <- training[ind6 == 1,]
-test6 <- training[ind6 == 2,]
-
-set.seed(111)
-
-ind7 <-sample(2, nrow(training),replace=T, prob = c(0.75, 0.25))
-
-train7 <- training[ind7 == 1,]
-test7<- training[ind7 == 2,]
-
-set.seed(41859)
-
-ind8 <-sample(2, nrow(training),replace=T, prob = c(0.75, 0.25))
-
-train8 <- training[ind8 == 1,]
-test8<- training[ind8 == 2,]
-
-
-set.seed(419)
-
-ind9 <-sample(2, nrow(training),replace=T, prob = c(0.75, 0.25))
-
-train9 <- training[ind9 == 1,]
-test9<- training[ind9 == 2,]
-
-set.seed(2020)
-
-ind10 <-sample(2, nrow(training),replace=T, prob = c(0.75, 0.25))
-
-train10 <- training[ind10 == 1,]
-test10<- training[ind10 == 2,]
-
-set.seed(13)
-
-ind11 <-sample(2, nrow(training),replace=T, prob = c(0.75, 0.25))
-
-train11 <- training[ind10 == 1,]
-test11<- training[ind10 == 2,]
-
-
-train<-rbind(train2,train3,train4,train5,train6,train7,train8,train9,train10,train11)
-test<-rbind(test2,test3,test4,test5,test6,test7,test8,test9,test10,test11)
-
-
-
+set.seed(1234)
 
 library(doParallel)
 TrainModelSet <- training[training$Proven_nephritis!='Unknown',]
@@ -2129,8 +2055,8 @@ for (i in 1:ncol(trainIndex)) {
   registerDoParallel(cl)
   models.sub[[i]]$modelSVM <- train(Proven_nephritis ~ .,
                                    data = models.sub[[i]]$train,
-                                   method = 'svm',
-                                   tuneLength = 20,
+                                   method = 'svmLinear',
+                                   tuneLength = 8,
                                    trControl = trControl,
                                    metric = "ROC")
   stopCluster(cl)
@@ -2141,8 +2067,7 @@ for (i in 1:ncol(trainIndex)) {
   registerDoParallel(cl)
   models.sub[[i]]$modelNB <- train(Proven_nephritis ~ .,
                                    data = models.sub[[i]]$train,
-                                   method = 'nb',
-                                   tuneLength = 20,
+                                   method = 'naive_bayes',
                                    trControl = trControl,
                                    metric = "ROC")
   stopCluster(cl)
@@ -2155,8 +2080,7 @@ dim(TrainModelSet[trainIndex[,1],])
 dim(TrainModelSet[-trainIndex[,1],])
 
 
-train$Proven_nephritis<-as.factor(train$Proven_nephritis) 
-train$Proven_nephritis<-revalue(train$Proven_nephritis, c(" No"="No",  " Yes" = "Yes"))
+
 
 
 ```
@@ -2247,63 +2171,96 @@ test2$Proven_nephritis<-revalue(test2$Proven_nephritis, c(" Unknown" = "Unknown"
 
 
 ```{r}
-# Se obtienen las probabilidades predichas para cada clase
-pred <- predict(object = model,
-                        newdata = test3,
-                        type = "prob")
+
+# Cálculo de la 
+curva_roc_rf<-list()
+for (i in 1:20){
+curva_roc_rf[[i]] <- roc(response = models.sub[[i]][["test"]]$Proven_nephritis, predictor = models.sub[[i]]$predRF$Yes)
+}
+
+
+
+
+par(mfrow=c(1,1))
+
+
+plot(curva_roc_rf[[1]], main= "Random Forest", col="red")
+set.seed(5460)
+color<-rainbow(n=20)
+for (i in 1:20){
+
+plot(curva_roc_rf[[i]], main= "Random Forest", add=TRUE, col=color[i])
+  }
+
+plot(model)
+
+
 # Cálculo de la curva
-curva_roc_rf <- roc(response = test3$Proven_nephritis, predictor = pred$Yes) 
+curva_roc_svm<-list()
+for (i in 1:20){
+curva_roc_svm[[i]] <- roc(response = models.sub[[i]][["test"]]$Proven_nephritis, predictor = models.sub[[i]]$predSVM$Yes)
+}
 
 
-p1<-plot(curva_roc_rf, main= "Random Forest", col="red", print.auc=TRUE)
+
+par(mfrow=c(1,1))
+
+
+plot(curva_roc_svm[[1]], main= "SVM", col="red")
+set.seed(5460)
+color<-rainbow(n=20)
+for (i in 1:20){
+
+plot(curva_roc_svm[[i]], main= "SVM", add=TRUE, col=color[i])
+  }
 
 plot(model)
 
 
 
-
-
-# Se obtienen las probabilidades predichas para cada clase
-pred <- predict(object = model_svm,
-                        newdata = test3,
-                        type = "prob")
 # Cálculo de la curva
-curva_roc_svm <- roc(response = test3$Proven_nephritis, 
-                 predictor = pred$Yes) 
-
-
-p2<-plot(curva_roc_svm, main= "SVM", col="red", print.auc=TRUE)
-
-plot(model_svm)
+curva_roc_knn<-list()
+for (i in 1:20){
+curva_roc_knn[[i]] <- roc(response = models.sub[[i]][["test"]]$Proven_nephritis, predictor = models.sub[[i]]$predKNN$Yes)
+}
 
 
 
-# Se obtienen las probabilidades predichas para cada clase
-pred <- predict(object = model_knn,
-                        newdata = test3,
-                        type = "prob")
+par(mfrow=c(1,1))
+
+
+plot(curva_roc_knn[[1]], main= "KNN", col="red")
+set.seed(5460)
+color<-rainbow(n=20)
+for (i in 1:20){
+
+plot(curva_roc_knn[[i]], main= "KNN", add=TRUE, col=color[i])
+  }
+
+plot(model)
+
+
+
 # Cálculo de la curva
-curva_roc_knn <- roc(response = test3$Proven_nephritis, 
-                 predictor = pred$Yes) 
+curva_roc_nb<-list()
+for (i in 1:20){
+curva_roc_nb[[i]] <- roc(response = models.sub[[i]][["test"]]$Proven_nephritis, predictor = models.sub[[i]]$predNB$Yes)
+}
 
 
-p3<-plot(curva_roc_knn, main= "kNN", col="red", print.auc=TRUE)
-
-plot(model_knn)
+par(mfrow=c(1,1))
 
 
-# Se obtienen las probabilidades predichas para cada clase
-pred <- predict(object = model_nb,
-                        newdata = test3,
-                        type = "prob")
-# Cálculo de la curva
-curva_roc_nb <- roc(response = test3$Proven_nephritis, 
-                 predictor = pred$Yes) 
+plot(curva_roc_nb[[1]], main= "NB", col="red")
+set.seed(5460)
+color<-rainbow(n=20)
+for (i in 1:20){
 
+plot(curva_roc_nb[[i]], main= "NB", add=TRUE, col=color[i])
+  }
 
-p4<-plot(curva_roc_nb, main= "NB", col="red", print.auc=TRUE)
+plot(model)
 
-plot(model_nb)
 
 ```
 
@@ -2349,173 +2306,6 @@ predict <- predict(object = model,
 ```
 
 
-
-# Model training Accuracy
-
-
-
-# Training control
-
-```{r}
-trControl2 <- trainControl(method = "repeatedcv",
-                          number = 10,
-                          repeats = 100,
-                          classProbs = TRUE,
-                          summaryFunction = defaultSummary,
-                          savePredictions = TRUE)
-```
-
-
-
-```{r}
-
-
-model2 <- train(Proven_nephritis ~ .,
-             data = train,
-             method = 'rf',
-             tuneLength = 20,
-             trControl = trControl2,
-             metric = "Accuracy")
-
-
-model_svm <- train(Proven_nephritis ~ .,
-             data = train,
-             method = 'svmLinear',
-             tuneLength = 20,
-             trControl = trControl,
-             metric = "Accuracy")
-
-model_knn <- train(Proven_nephritis ~ .,
-             data = train,
-             method = 'knn',
-             tuneLength = 20,
-             trControl = trControl,
-             metric = "Accuracy")
-
-
-model_nb <- train(Proven_nephritis ~ .,
-             data = train,
-             method = 'naive_bayes',
-             tuneLength = 20,
-             trControl = trControl,
-             metric = "Accuracy")
-
-
-```
-
-
-# Guardo los modelos 
-
-```{r}
-saveRDS(model2, "model2.rds")
-model2 <- readRDS("model2.rds")
-
-saveRDS(model_svm2, "model_svm2.rds")
-model_svm2<- readRDS("model_svm2.rds")
-
-saveRDS(model_knn2, "model_knn2.rds")
-model_knn2<- readRDS("model_knn2.rds")
-
-saveRDS(model_nb2, "model_nb2.rds")
-model_nb2 <- readRDS("model_nb2.rds")
-
-
-```
-
-
-# Predicciones Accuracy
-
-
-```{r}
-test2<-test[test$Proven_nephritis %like% "Unknown",]
-test3<-test[test$Proven_nephritis != 'Unknown',]
-
-write.table(test3, file = "/home/david_caceres/Exosomas/Exosomas2/Tablas/test3.tsv", append = FALSE, quote = TRUE, sep = "\t ")
-test3<-read.table(file="/home/david_caceres/Exosomas/Exosomas2/Tablas/test3.tsv", header = TRUE, sep = "\t")
-write.table(test2, file = "/home/david_caceres/Exosomas/Exosomas2/Tablas/test2.tsv", append = FALSE, quote = TRUE, sep = "\t ")
-test2<-read.table(file="/home/david_caceres/Exosomas/Exosomas2/Tablas/test2.tsv", header = TRUE, sep = "\t")
-
-
-test3$Proven_nephritis<-as.factor(test3$Proven_nephritis)
-test2$Proven_nephritis<-as.factor(test2$Proven_nephritis)
-
-library(plyr)
-test3$Proven_nephritis<-revalue(test3$Proven_nephritis, c(" No"="No", " Yes" = "Yes"))
-test2$Proven_nephritis<-revalue(test2$Proven_nephritis, c(" Unknown" = "Unknown"))
-
-
-
-```
-
-
-
-```{r}
-# Se obtienen las probabilidades predichas para cada clase
-pred2 <- predict(object = model2,
-                        newdata = test3,
-                        type = "prob")
-# Cálculo de la curva
-curva_roc_rf2 <- roc(response = test3$Proven_nephritis, predictor = pred2$Yes) 
-
-
-p1<-plot(curva_roc_rf2, main= "Random Forest", col="red", print.auc=TRUE)
-
-plot(model2)
-
-
-
-
-
-# Se obtienen las probabilidades predichas para cada clase
-pred2 <- predict(object = model_svm2,
-                        newdata = test3,
-                        type = "prob")
-# Cálculo de la curva
-curva_roc_svm2 <- roc(response = test3$Proven_nephritis, 
-                 predictor = pred2$Yes) 
-
-
-p2<-plot(curva_roc_svm2, main= "SVM", col="red", print.auc=TRUE)
-
-plot(model_svm2)
-
-
-
-# Se obtienen las probabilidades predichas para cada clase
-pred2 <- predict(object = model_knn2,
-                        newdata = test3,
-                        type = "prob")
-# Cálculo de la curva
-curva_roc_knn2 <- roc(response = test3$Proven_nephritis, 
-                 predictor = pred2$Yes) 
-
-
-p3<-plot(curva_roc_knn2, main= "kNN", col="red", print.auc=TRUE)
-
-plot(model_knn2)
-
-
-# Se obtienen las probabilidades predichas para cada clase
-pred2 <- predict(object = model_nb2,
-                        newdata = test3,
-                        type = "prob")
-# Cálculo de la curva
-curva_roc_nb2 <- roc(response = test3$Proven_nephritis, 
-                 predictor = pred2$Yes) 
-
-
-p4<-plot(curva_roc_nb2, main= "NB", col="red", print.auc=TRUE)
-
-plot(model_nb2)
-
-```
-
-
-```{r}
-par(mfrow=c(2,2))
-
-```
-
 # Matriz de confusión
 
 ```{r}
@@ -2539,6 +2329,86 @@ cal_obj <- calibration(Proven_nephritis ~ .,
 plot(cal_obj, type = "l", auto.key = list(columns = 3,
                                           lines = TRUE,
                                           points = FALSE))
+
+```
+
+
+# Tablas de resultados
+
+```{r}
+
+
+# RF
+auc_rf<-list()
+for (i in 1:20){
+auc_rf[[i]]<-curva_roc_rf[[i]]$auc
+}
+
+auc_rf<- do.call(rbind, auc_rf)
+
+mtry_rf<-list()
+for (i in 1:20){
+mtry_rf[[i]]<-models.sub[[i]]$modelRF$bestTune
+}
+mtry_rf<- do.call(rbind, mtry_rf)
+
+tabla<-cbind(mtry_rf, auc_rf)
+
+# SVM
+
+auc_svm<-list()
+for (i in 1:20){
+auc_svm[[i]]<-curva_roc_svm[[i]]$auc
+}
+
+auc_svm<- do.call(rbind, auc_svm)
+
+mtry_svm<-list()
+for (i in 1:20){
+mtry_svm[[i]]<-models.sub[[i]]$modelSVM$bestTune
+}
+mtry_svm<- do.call(rbind, mtry_svm)
+
+tabla<-cbind(mtry,auc,mtry_svm,auc_svm)
+
+
+# KNN
+
+# SVM
+
+auc_knn<-list()
+for (i in 1:20){
+auc_knn[[i]]<-curva_roc_knn[[i]]$auc
+}
+
+auc_knn<- do.call(rbind, auc_knn)
+
+mtry_knn<-list()
+for (i in 1:20){
+mtry_knn[[i]]<-models.sub[[i]]$modelKNN$bestTune
+}
+mtry_knn<- do.call(rbind, mtry_knn)
+
+tabla<-cbind(mtry,auc,mtry_svm,auc_svm,mtry_knn,auc_knn)
+
+
+# NB
+
+auc_nb<-list()
+for (i in 1:20){
+auc_nb[[i]]<-curva_roc_nb[[i]]$auc
+}
+
+auc_nb<- do.call(rbind, auc_nb)
+
+mtry_nb<-list()
+for (i in 1:20){
+mtry_nb[[i]]<-models.sub[[i]]$modelNB$bestTune
+}
+mtry_nb<- do.call(rbind, mtry_nb)
+
+tabla<-cbind(mtry_rf,auc_rf,mtry_svm,auc_svm,mtry_knn,auc_knn,mtry_nb[3],auc_nb)
+
 
 ```
 
